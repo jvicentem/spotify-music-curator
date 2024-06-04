@@ -1,0 +1,23 @@
+---
+result_playlists:
+  best_matches: # this is a playlist name
+    n_songs: 16
+    distance_range: [0.0, 0.5]
+    artist_in_fav_pl_are_included: True
+  worth_listening:
+    n_songs: 20
+    distance_range: [0.5, 1.0]
+    artist_in_fav_pl_are_included: True
+songs_by_playlist: 15
+song_distances:
+  reference_playlist_url: "https://open.spotify.com/playlist/5ZzVrO1Y9plnOCoSmfW4Hk?si=e826324136a64261"
+  playlists_to_curate:
+    - "https://open.spotify.com/playlist/37i9dQZF1DWY4lFlS4Pnso?si=f6354486afa142e2"
+    - "https://open.spotify.com/playlist/4PAmz1KJpgJCd03BreSenF?si=861bcaebe31645df"
+    - "https://open.spotify.com/playlist/3ivSu20CWXjveS2h2qZ54K?si=2dfcf9865bbc4501"
+    - "https://open.spotify.com/playlist/5FJ5R13o9A1l018qE0vI88?si=3c139f246c8340d3"
+    - "https://open.spotify.com/playlist/5NsZabBjLrejTFijmLwKV2?si=ed983c97348b48cb"
+    - "https://open.spotify.com/playlist/2yq4iaXGrLa69oHXGm9olQ?si=3a115915e15b41ee"
+faved_artists:
+  min_songs_in_fav_pl: 5 # artists need to have at least this number of songs in fav pl to be considered (= 1 can create noise)
+  fav_playlist_url: "https://open.spotify.com/playlist/0Zu81wbBbw1B0onTyVYpLN?si=f75b4124e46144b8"
