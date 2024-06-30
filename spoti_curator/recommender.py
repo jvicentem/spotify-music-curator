@@ -133,8 +133,11 @@ def _create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, ml=False):
                                    & (simil_new_df[REF_SIMIL_COL_PREFIX(1)] < max_simil_range)]
         
         filtered_df = filtered_df.sort_values(by=REF_SIMIL_COL_PREFIX(1), ascending=False).head(pl[Config.N_SONGS])
-        
-        hr_and_filtered_df = pd.merge(filtered_df, only_hard_rules_df[[Column.TRACK_ID]], on=Column.TRACK_ID, how='outer')
+
+        if pl[Config.INCLUDE_FAV_ARTISTS]:        
+            hr_and_filtered_df = pd.merge(filtered_df, only_hard_rules_df[[Column.TRACK_ID]], on=Column.TRACK_ID, how='outer')
+        else:
+            hr_and_filtered_df = filtered_df
 
         hr_and_filtered_df['pl_name'] = pl_name
 
