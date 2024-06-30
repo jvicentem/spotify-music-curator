@@ -14,7 +14,7 @@ import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
 
 from spoti_curator.constants import Column, Config, get_config
-from spoti_curator.spoti_utils import create_playlist, get_songs_feats, get_songs_from_pl, login
+from spoti_curator.spoti_utils import create_playlist, get_songs_feats, get_songs_from_pl, get_user_pls, login
 from spoti_curator.utils import REF_SIMIL_COL_PREFIX, transform_simil_df
 
 
@@ -76,7 +76,7 @@ def do_recommendation():
                               for pl_url in config[Config.FAVED_ARTISTS_SECTION][Config.FAV_PLAYLISTS_URL]])
     
     ## apply hard rules (keep songs from faved artists)
-    only_hard_rules_df = _hard_rules(simil_new_df, fav_songs_df, config)     
+    simil_new_df, only_hard_rules_df = _hard_rules(sp, simil_new_df, fav_songs_df, config)     
 
     debug_df = _create_reco_pls(sp, simil_new_df, only_hard_rules_df, config)
 
@@ -160,12 +160,13 @@ def _create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, ml=False):
     
     return debug_df
 
-def _hard_rules(simil_df, fav_songs_df, config):
+def _hard_rules(sp, simil_df, fav_songs_df, config):
     """
     Simple rules that makes a song to be included in the final playlists.
 
     - Artist is included in fav pl are included in each pl (if enabled)
     - Songs with similitude = 1 -> song won't be included in final pl.
+    - Do not add songs that were added in previous playlists
     """
 
     simil_df_aux = simil_df.copy()
@@ -184,9 +185,26 @@ def _hard_rules(simil_df, fav_songs_df, config):
 
     count_artists_songs = count_artists_songs[count_artists_songs[Column.TRACK_ID] > config[Config.FAVED_ARTISTS_SECTION][Config.MIN_SONGS_IN_FAV_PL]]
 
-    simil_df_aux = simil_df_aux[ simil_df_aux['artists_str'].isin( count_artists_songs['artists_str'].values ) ].drop(columns=['artists_str'])
+    only_hard_rules = simil_df_aux[ simil_df_aux['artists_str'].isin( count_artists_songs['artists_str'].values ) ].drop(columns=['artists_str'])
 
-    return simil_df_aux
+    simil_df_aux = simil_df_aux.drop(columns=['artists_str'])
+
+    # remove previously added songs
+    user_pls = get_user_pls(sp)
+    pl_to_create_names = [v[Config.PL_NAME] for _, v in config[Config.RESULT_PLS].items()]
+    pls_created = [pl['id'] for pl in user_pls if any([pl['name'] in x for x in pl_to_create_names]) ]
+
+    prev_pls_songs = []
+    for pl_id in pls_created:
+        prev_pls_songs.append(get_songs_from_pl(sp, pl_id))
+
+    prev_pls_songs = pd.concat(prev_pls_songs)
+    # remove from simil_df_aux and from only_hard_rules all songs that appeared in previous pls
+
+    simil_df_aux = simil_df_aux[ ~ simil_df_aux[Column.TRACK_ID].isin( prev_pls_songs[Column.TRACK_ID].values ) ]
+    only_hard_rules = only_hard_rules[ ~ only_hard_rules[Column.TRACK_ID].isin( prev_pls_songs[Column.TRACK_ID].values ) ]
+
+    return simil_df_aux, only_hard_rules
 
 def _create_ml_df(distances_df, songs_feats_df):
     pass

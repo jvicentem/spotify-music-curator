@@ -6,7 +6,7 @@ import traceback
 
 
 def login():
-    scope='user-library-read playlist-modify-private'
+    scope='user-library-read playlist-modify-private playlist-read-private'
 
     sp = spotipy.Spotify(auth_manager=SpotifyOAuth(scope=scope))
 
@@ -24,6 +24,21 @@ def create_playlist(sp, tracks_df, user, pl_name):
     except Exception:
         return traceback.format_exc()
 
+def get_user_pls(sp):
+    first_call = sp.current_user_playlists(limit=50)
+
+    result = first_call['items']
+
+    offset = 50
+    if first_call['next'] is not None:
+        next_call = sp.current_user_playlists(limit=50, offset=offset)
+
+        result += next_call['items']
+
+        if next_call['next'] is not None:
+            offset += 50
+
+    return result
 
 def get_pl_artists(pl_df):
     return list(set([aa for a in pl_df[Column.TRACK_ARTISTS].values for aa in a]))
