@@ -80,9 +80,25 @@ def do_recommendation():
 
     debug_df = _create_reco_pls(sp, simil_new_df, only_hard_rules_df, config)
 
-    train_df = _create_ml_df(simil_new_df, songs_feats_df)
+    # ml system: 
+    # create a df from songs in the "positive class playlist" and songs from prev
+    # playlists. The latter will be 0s.
+    # For each song, its distance is calculated to any of the songs from "reference playlist"
+    # Because each song in the reference playlist is associated with a "subgenre" that you like,
+    # this will help to build a training, val and test dataset that is correctly ballanced between "subgenres"
+    # If there are too much songs of a subgenre, some of them must be removed. If more are needed, we can use the
+    # ones from "the reference playlist"
 
-    _train_ml_model(simil_new_df)
+    # Once this is done, an ml model can be trained using AutoML, forcing to use random samples balanced by "subgenre" always.
+    # If using embeddings, force that feature and distance variables are always included (or build two models and then a metamodel...)
+    # The model is stored in a folder with the date, and a small txt that serves as a report of the model.
+    
+    # The dataframe that is built every day will be bigger and bigger on purpose, to have a big historical data.
+    # It will also serve as a cache for avoiding calls into the api and calculating again embeddings.
+    
+    #train_df = _create_ml_df(debug_df, songs_feats_df)
+
+    #_train_ml_model(simil_new_df)
 
 def _feature_similarity(songs_feats_df):
     """
@@ -209,26 +225,15 @@ def _hard_rules(sp, simil_df, fav_songs_df, config):
 
     return simil_df_aux, only_hard_rules
 
-def _create_ml_df(distances_df, songs_feats_df):
+def _create_ml_df(debug_df, songs_feats_df):
+    result_df = pd.merge(debug_df, songs_feats_df, on=Column.TRACK_ID, how='inner')
+
+    # calculate embeddings
+
+    # calculate subgenres
+
+    # calculate positive - negative class
     pass
 
 def _train_ml_model(train_df):
-    pass
-
-def _extract_embedding(song_id, song_audio):
-    """
-    Given a song audio, it extracts an embedding.
-
-    If it is already calculated and stored, it will retrieve it from storage/embeddings.py.
-
-    If not, it will calculate it.
-    """
-    pass
-
-def _similitude(embed_1, embed_2):
-    """
-    Given two embeddings, it calculates their similitude.
-
-    Interacts with storage/embeddings.py to calculate the distance.
-    """
     pass
