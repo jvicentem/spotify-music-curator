@@ -9,7 +9,7 @@ result_playlists:
     name: "Fuzzy Stuff"
     n_songs: 20
     similitude_range: [0.5, 0.2]
-    artist_in_fav_pl_are_included: True
+    artist_in_fav_pl_are_included: False
 origin_playlists:
   reference_playlist_url: 
     - "https://open.spotify.com/playlist/6NyjTAYxzLqkPmMY4Z7Lhq?si=0cad74ec1cc0482a"
