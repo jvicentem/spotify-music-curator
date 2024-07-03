@@ -25,18 +25,13 @@ def create_playlist(sp, tracks_df, user, pl_name):
         return traceback.format_exc()
 
 def get_user_pls(sp):
-    first_call = sp.current_user_playlists(limit=50)
+    call_result = sp.current_user_playlists(limit=50)
 
-    result = first_call['items']
+    result = call_result['items']
 
-    offset = 50
-    if first_call['next'] is not None:
-        next_call = sp.current_user_playlists(limit=50, offset=offset)
-
-        result += next_call['items']
-
-        if next_call['next'] is not None:
-            offset += 50
+    while call_result['next']:
+        call_result = sp.next(call_result)
+        result += call_result['items']    
 
     return result
 
@@ -53,12 +48,27 @@ def get_songs_from_pl(sp, pl_url):
             track = item['track']
 
             track_row = {Column.TRACK_ID: track['id'],
-                         Column.TRACK_NAME: track['name'],
-                         Column.TRACK_ARTISTS: [i['id'] for i in track['artists']],
-                         Column.PL_URL: pl_url
+                        Column.TRACK_NAME: track['name'],
+                        Column.TRACK_ARTISTS: [i['id'] for i in track['artists']],
+                        Column.PL_URL: pl_url
                         }
             
-            tracks.append(track_row)
+            tracks.append(track_row)      
+
+    while pl_tracks['next']:
+        pl_tracks = sp.next(pl_tracks)
+
+        for item in pl_tracks['items']:
+            if item['track'] is not None:
+                track = item['track']
+
+                track_row = {Column.TRACK_ID: track['id'],
+                            Column.TRACK_NAME: track['name'],
+                            Column.TRACK_ARTISTS: [i['id'] for i in track['artists']],
+                            Column.PL_URL: pl_url
+                            }
+                
+                tracks.append(track_row)                   
         
     return pd.DataFrame(tracks)
 

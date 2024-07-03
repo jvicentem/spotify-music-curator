@@ -2,7 +2,8 @@ import logging
 
 logging.basicConfig(filename='spoti_recommender.log',
                     format='%(asctime)s %(message)s',
-                    filemode='w')
+                    filemode='w',
+                    level=logging.INFO)
 
 logger = logging.getLogger()
 
@@ -211,7 +212,12 @@ def _hard_rules(sp, simil_df, fav_songs_df, config):
     # remove previously added songs
     user_pls = get_user_pls(sp)
     pl_to_create_names = [v[Config.PL_NAME] for _, v in config[Config.RESULT_PLS].items()]
-    pls_created = [pl['id'] for pl in user_pls if any([pl['name'] in x for x in pl_to_create_names]) ]
+
+    pls_created = []
+
+    for pl in user_pls:
+        if pl['name'].strip() != '' and any([x in pl['name'] for x in pl_to_create_names]):
+            pls_created.append(pl['id'])
 
     prev_pls_songs = []
     for pl_id in pls_created:
