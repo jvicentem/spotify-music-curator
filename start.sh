@@ -4,12 +4,13 @@ cd /Users/jose/spotify-music-curator
 
 pyenv activate music_curator
 
-python ./spoti_curator/app.py
+cd ./spoti_curator
 
-if [ ! -f .env ]
-then
-  export $(cat .env | xargs)
-fi
+eval $(cat .env | sed 's/^/export /')
+
+cd ..
+
+python ./spoti_curator/app.py
 
 echo $SPECIAL_ENV | sudo -S -k pmset repeat wakeorpoweron F 16:30:00
 
