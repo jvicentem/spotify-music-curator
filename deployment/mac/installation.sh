@@ -29,3 +29,6 @@ python3.10 -m pip install pip-tools
 pip-compile --output-file=./requirements.txt ./requirements.in
 
 pip3.10 install -r ./requirements.txt
+
+# crontab -e
+# 31 16 * * FRI /Users/jose/spotify-music-curator/start.sh
