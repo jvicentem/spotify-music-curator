@@ -31,4 +31,4 @@ pip-compile --output-file=./requirements.txt ./requirements.in
 pip3.10 install -r ./requirements.txt
 
 # crontab -e
-# 31 16 * * FRI /Users/jose/spotify-music-curator/start.sh
+# 31 16 * * FRI bash /Users/jose/spotify-music-curator/start.sh >> /Users/jose/spotify-music-curator/out.log 2>&1
