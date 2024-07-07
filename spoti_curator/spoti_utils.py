@@ -1,6 +1,6 @@
 import pandas as pd
 import spotipy
-from spoti_curator.constants import Column
+from spoti_curator.constants import Column, Config
 from spotipy.oauth2 import SpotifyOAuth
 import traceback
 
@@ -48,9 +48,9 @@ def get_songs_from_pl(sp, pl_url):
             track = item['track']
 
             track_row = {Column.TRACK_ID: track['id'],
-                        Column.TRACK_NAME: track['name'],
-                        Column.TRACK_ARTISTS: [i['id'] for i in track['artists']],
-                        Column.PL_URL: pl_url
+                         Column.TRACK_NAME: track['name'],
+                         Column.TRACK_ARTISTS: [i['id'] for i in track['artists']],
+                         Column.PL_URL: pl_url
                         }
             
             tracks.append(track_row)      
@@ -63,9 +63,9 @@ def get_songs_from_pl(sp, pl_url):
                 track = item['track']
 
                 track_row = {Column.TRACK_ID: track['id'],
-                            Column.TRACK_NAME: track['name'],
-                            Column.TRACK_ARTISTS: [i['id'] for i in track['artists']],
-                            Column.PL_URL: pl_url
+                             Column.TRACK_NAME: track['name'],
+                             Column.TRACK_ARTISTS: [i['id'] for i in track['artists']],
+                             Column.PL_URL: pl_url
                             }
                 
                 tracks.append(track_row)                   
@@ -121,6 +121,24 @@ def get_songs_feats(sp, songs_df):
 
     return features_df
 
+def get_prev_pls_songs(sp, config):
+    user_pls = get_user_pls(sp)
+    pl_to_create_names = [v[Config.PL_NAME] for _, v in config[Config.RESULT_PLS].items()]
+
+    pls_created = []
+
+    for pl in user_pls:
+        if pl['name'].strip() != '' and any([x in pl['name'] for x in pl_to_create_names]):
+            pls_created.append((pl['id'], pl['name']))
+
+    prev_pls_songs = []
+    for pl_id, pl_name in pls_created:
+        pl_songs_df = get_songs_from_pl(sp, pl_id)
+        pl_songs_df['pl_name'] = pl_name
+
+        prev_pls_songs.append(pl_songs_df)
+
+    return pd.concat(prev_pls_songs)    
 
 def get_song_clip():
     pass

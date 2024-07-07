@@ -1,14 +1,17 @@
 import yaml
 
+
+CONFIG_PATH = './config/config.yaml' 
+ASSETS_PATH = './assets'
+DEBUG_DF_PATH = f'{ASSETS_PATH}/debug_df.pkl'
+ML_DF_PATH = f'{ASSETS_PATH}/ml_df.pkl'
+
 def get_config():
     with open(CONFIG_PATH) as stream:
         try:
             return yaml.safe_load(stream)
         except yaml.YAMLError as exc:
             return {}
-
-
-CONFIG_PATH = './config/config.yaml' 
 
 config = get_config()
 
@@ -20,10 +23,13 @@ class Column:
     PL_URL = 'pl_url'
     IS_REF_PL = 'is_ref_pl'    
 
+    IS_HARD_RULES = 'is_hard_rules'
+
 class Config:
     ORIGIN_PLS = 'origin_playlists'
     PLS_TO_CURATE = 'playlists_to_curate'
     REF_PL = 'reference_playlist_url'
+    POSSITIVE_CLASS_PL = 'positive_class_pl'
 
     RESULT_PLS = 'result_playlists'
 

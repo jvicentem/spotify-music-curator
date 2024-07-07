@@ -1,4 +1,7 @@
+import os
 import logging
+
+# from spoti_curator.ml import create_ml_df
 
 logging.basicConfig(filename='spoti_recommender.log',
                     format='%(asctime)s %(message)s',
@@ -13,9 +16,10 @@ today = datetime.today().strftime('%Y/%m/%d')
 
 import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.preprocessing import RobustScaler
 
-from spoti_curator.constants import Column, Config, get_config
-from spoti_curator.spoti_utils import create_playlist, get_songs_feats, get_songs_from_pl, get_user_pls, login
+from spoti_curator.constants import DEBUG_DF_PATH, Column, Config, get_config
+from spoti_curator.spoti_utils import create_playlist, get_prev_pls_songs, get_songs_feats, get_songs_from_pl, get_user_pls, login
 from spoti_curator.utils import REF_SIMIL_COL_PREFIX, transform_simil_df
 
 
@@ -57,8 +61,6 @@ def do_recommendation():
 
     songs_in_pls_df = pd.concat([songs_in_pls_df, songs_in_ref_pls_df])   
 
-    # songs_artists_df = get_song_artists_df(songs_in_pls_df)
-
     # get song features
     songs_feats_df = get_songs_feats(sp, songs_in_pls_df)
 
@@ -77,13 +79,19 @@ def do_recommendation():
                               for pl_url in config[Config.FAVED_ARTISTS_SECTION][Config.FAV_PLAYLISTS_URL]])
     
     ## apply hard rules (keep songs from faved artists)
-    simil_new_df, only_hard_rules_df = _hard_rules(sp, simil_new_df, fav_songs_df, config)     
+    simil_new_df, only_hard_rules_df, prev_pls_songs = _hard_rules(sp, simil_new_df, fav_songs_df, config)     
 
-    debug_df = _create_reco_pls(sp, simil_new_df, only_hard_rules_df, config)
+    debug_df = create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, songs_feats_df) #TODO: run everything until here, comenting the actual pl creation, screenshot of debug_df shape
+
+    _save_debug_df(debug_df)
 
     # ml system: 
     # create a df from songs in the "positive class playlist" and songs from prev
     # playlists. The latter will be 0s.
+
+    # ml_df = create_ml_df(sp, config, prev_pls_songs)
+
+
     # For each song, its distance is calculated to any of the songs from "reference playlist"
     # Because each song in the reference playlist is associated with a "subgenre" that you like,
     # this will help to build a training, val and test dataset that is correctly ballanced between "subgenres"
@@ -97,8 +105,6 @@ def do_recommendation():
     # The dataframe that is built every day will be bigger and bigger on purpose, to have a big historical data.
     # It will also serve as a cache for avoiding calls into the api and calculating again embeddings.
     
-    #train_df = _create_ml_df(debug_df, songs_feats_df)
-
     #_train_ml_model(simil_new_df)
 
 def _feature_similarity(songs_feats_df):
@@ -112,15 +118,20 @@ def _feature_similarity(songs_feats_df):
     non_ref_artists = songs_feats_df[songs_feats_df[Column.IS_REF_PL] == 0][Column.TRACK_ARTISTS].values
 
     songs_feats_df_aux = songs_feats_df.copy().drop(columns=['mode', 'key', Column.TRACK_ID])
-    for c in songs_feats_df_aux.columns:
-        if c not in [Column.IS_REF_PL, Column.TRACK_ARTISTS]:
-            songs_feats_df_aux[c] = ((songs_feats_df_aux[c] - songs_feats_df_aux[c].min()) 
-                                    /  
-                                    max(songs_feats_df_aux[c].max() - songs_feats_df_aux[c].min(), 0.00001)
-                                    )
+    
+    scaler = RobustScaler(#with_centering=True, 
+                          with_scaling=True)
+    songs_feats_df_aux = pd.DataFrame(scaler.fit_transform(songs_feats_df_aux.drop(columns=[Column.IS_REF_PL, Column.TRACK_ARTISTS])))
+
+    # for c in songs_feats_df_aux.columns:
+    #     if c not in [Column.IS_REF_PL, Column.TRACK_ARTISTS]:
+    #         songs_feats_df_aux[c] = ((songs_feats_df_aux[c] - songs_feats_df_aux[c].min()) 
+    #                                 /  
+    #                                 max(songs_feats_df_aux[c].max() - songs_feats_df_aux[c].min(), 0.00001)
+    #                                 )
             
-    ref_songs = songs_feats_df_aux[songs_feats_df_aux[Column.IS_REF_PL] == 1].drop(columns=[Column.IS_REF_PL, Column.TRACK_ARTISTS])
-    non_ref_songs = songs_feats_df_aux[songs_feats_df_aux[Column.IS_REF_PL] == 0].drop(columns=[Column.IS_REF_PL, Column.TRACK_ARTISTS])
+    ref_songs = songs_feats_df_aux[songs_feats_df[Column.IS_REF_PL] == 1]#.drop(columns=[Column.IS_REF_PL, Column.TRACK_ARTISTS])
+    non_ref_songs = songs_feats_df_aux[songs_feats_df[Column.IS_REF_PL] == 0]#.drop(columns=[Column.IS_REF_PL, Column.TRACK_ARTISTS])
             
     cosine_similarity_result = cosine_similarity(non_ref_songs, ref_songs)
 
@@ -132,7 +143,7 @@ def _feature_similarity(songs_feats_df):
 
     return cosine_similarity_df            
 
-def _create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, ml=False):
+def create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, songs_feats_df):
     # let's know first how many pls we are going to create, and what is their configuration
     pls_to_create = config[Config.RESULT_PLS]
 
@@ -152,7 +163,7 @@ def _create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, ml=False):
         filtered_df = filtered_df.sort_values(by=REF_SIMIL_COL_PREFIX(1), ascending=False).head(pl[Config.N_SONGS])
 
         if pl[Config.INCLUDE_FAV_ARTISTS]:        
-            hr_and_filtered_df = pd.merge(filtered_df, only_hard_rules_df[[Column.TRACK_ID]], on=Column.TRACK_ID, how='outer')
+            hr_and_filtered_df = pd.merge(filtered_df, only_hard_rules_df[[Column.TRACK_ID, Column.IS_HARD_RULES]], on=[Column.TRACK_ID, Column.IS_HARD_RULES], how='outer')
         else:
             hr_and_filtered_df = filtered_df
 
@@ -169,6 +180,7 @@ def _create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, ml=False):
             logger.info(f'Creating "{pl_name}" playlist! {len(hr_and_filtered_df)} songs in this playlist.')
 
             error = create_playlist(sp, hr_and_filtered_df, config[Config.USER], pl_name)
+            error = None
 
             if error is not None:
                 logger.error(error)
@@ -177,6 +189,8 @@ def _create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, ml=False):
     # it must have a track of what song goes to what pl, what was the song that made it become included, the name of the pl in which it was included
     
     debug_df = pd.concat(pls_dfs)
+
+    debug_df = pd.merge(debug_df, songs_feats_df.drop(columns=[Column.TRACK_ARTISTS]), on=Column.TRACK_ID, how='left')
     
     return debug_df
 
@@ -210,36 +224,25 @@ def _hard_rules(sp, simil_df, fav_songs_df, config):
     simil_df_aux = simil_df_aux.drop(columns=['artists_str'])
 
     # remove previously added songs
-    user_pls = get_user_pls(sp)
-    pl_to_create_names = [v[Config.PL_NAME] for _, v in config[Config.RESULT_PLS].items()]
-
-    pls_created = []
-
-    for pl in user_pls:
-        if pl['name'].strip() != '' and any([x in pl['name'] for x in pl_to_create_names]):
-            pls_created.append(pl['id'])
-
-    prev_pls_songs = []
-    for pl_id in pls_created:
-        prev_pls_songs.append(get_songs_from_pl(sp, pl_id))
-
-    prev_pls_songs = pd.concat(prev_pls_songs)
+    prev_pls_songs = get_prev_pls_songs(sp, config)
+    
     # remove from simil_df_aux and from only_hard_rules all songs that appeared in previous pls
 
     simil_df_aux = simil_df_aux[ ~ simil_df_aux[Column.TRACK_ID].isin( prev_pls_songs[Column.TRACK_ID].values ) ]
     only_hard_rules = only_hard_rules[ ~ only_hard_rules[Column.TRACK_ID].isin( prev_pls_songs[Column.TRACK_ID].values ) ]
 
-    return simil_df_aux, only_hard_rules
+    only_hard_rules[Column.IS_HARD_RULES] = 1
+    simil_df_aux[Column.IS_HARD_RULES] = 0    
 
-def _create_ml_df(debug_df, songs_feats_df):
-    result_df = pd.merge(debug_df, songs_feats_df, on=Column.TRACK_ID, how='inner')
-
-    # calculate embeddings
-
-    # calculate subgenres
-
-    # calculate positive - negative class
-    pass
+    return simil_df_aux, only_hard_rules, prev_pls_songs
 
 def _train_ml_model(train_df):
     pass
+
+def _save_debug_df(debug_df):
+    if os.path.isfile(DEBUG_DF_PATH):
+        old_debug_df = pd.read_pickle(DEBUG_DF_PATH)
+
+        debug_df = pd.concat([old_debug_df, debug_df]).drop_duplicates(Column.TRACK_ID)
+    
+    debug_df.to_pickle(DEBUG_DF_PATH) 

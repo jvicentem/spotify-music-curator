@@ -23,6 +23,7 @@ faved_artists:
   min_songs_in_fav_pl: 3 # artists need to have at least this number of songs in fav pl to be considered (= 1 can create noise)
   fav_playlists_url: 
     - "https://open.spotify.com/playlist/0Zu81wbBbw1B0onTyVYpLN?si=f75b4124e46144b8"
-    - "https://open.spotify.com/playlist/7eSCDwgV6yHpuawWURu8qD?si=f16b42eff58f4136"
+    - "https://open.spotify.com/playlist/7eSCDwgV6yHpuawWURu8qD?si=f16b42eff58f4136" # outliers pl
+positive_class_pl: "https://open.spotify.com/playlist/7zbRh4zP0SVtviSYoqn9DM?si=12e7335b56164880"
 user: "1199533427"
-max_simil_comparisons: 3
+max_simil_comparisons: -1 # -1 = all reference songs are kept

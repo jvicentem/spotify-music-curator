@@ -12,6 +12,11 @@ def transform_simil_df(simil_df, max_comparisons_val):
     # Assuming your original dataframe is named 'df'
     # If not, replace 'df' with your actual dataframe name
 
+    max_comparisons_orig_val = max_comparisons_val
+
+    if max_comparisons_val == -1:
+        max_comparisons_val = len(simil_df.columns) - 2
+
     ref_ids_cols = [REF_COL_PREFIX(x) for x in list(range(1, max_comparisons_val+1))]
     val_cols = [REF_SIMIL_COL_PREFIX(x) for x in list(range(1, max_comparisons_val+1))]
 
@@ -25,10 +30,13 @@ def transform_simil_df(simil_df, max_comparisons_val):
         # Sort the row by values in descending order
         sorted_series = row.sort_values(ascending=False)
         
-        # Get the top 3 values and their corresponding column names
-        top_3 = [(col, val) for col, val in sorted_series.items()][:3]
+        # Get the top n values and their corresponding column names
+        top_n = [(col, val) for col, val in sorted_series.items()]
+
+        if max_comparisons_orig_val > 0:
+            top_n = top_n[:max_comparisons_val]
         
-        return top_3
+        return top_n
 
     # Apply the function to each row
     df_new['aux'] = df_new[cols_to_sort].apply(_process_row, axis=1)    

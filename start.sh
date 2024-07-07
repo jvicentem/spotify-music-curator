@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-cd /Users/jose/spotify-music-curator
+cd ~/spotify-music-curator
 
 cd ./spoti_curator
 eval $(cat .env | sed 's/^/export /')
