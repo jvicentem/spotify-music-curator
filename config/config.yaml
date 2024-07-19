@@ -1,15 +1,15 @@
 ---
 result_playlists:
-  best_matches: # this is a playlist name
+  worth_listening:
+   name: "Fuzzy Stuff"
+   n_songs: 50
+   similitude_range: [0.9, 0.2]
+   artist_in_fav_pl_are_included: False
+  best_matches:
     name: "Best Matches"
     n_songs: 30
-    similitude_range: [1.0, 0.95]
+    similitude_range: [1.0, 0.9]
     artist_in_fav_pl_are_included: True
-  worth_listening:
-    name: "Fuzzy Stuff"
-    n_songs: 50
-    similitude_range: [0.95, 0.2]
-    artist_in_fav_pl_are_included: False
 origin_playlists:
   reference_playlist_url: 
     - "https://open.spotify.com/playlist/6NyjTAYxzLqkPmMY4Z7Lhq?si=0cad74ec1cc0482a"

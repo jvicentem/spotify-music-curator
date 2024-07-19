@@ -16,7 +16,7 @@ today = datetime.today().strftime('%Y/%m/%d')
 
 import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.preprocessing import RobustScaler
+# from sklearn.preprocessing import RobustScaler
 
 from spoti_curator.constants import DEBUG_DF_PATH, Column, Config, get_config
 from spoti_curator.spoti_utils import create_playlist, get_prev_pls_songs, get_songs_feats, get_songs_from_pl, get_user_pls, login
@@ -112,26 +112,28 @@ def _feature_similarity(songs_feats_df):
     Output shape: reference track ids on column names. non-reference track ids in TRACK_ID column.
     Each value is the cosine similarity between each non-ref song and each ref-song
     """
-    ref_track_ids = songs_feats_df[songs_feats_df[Column.IS_REF_PL] == 1][Column.TRACK_ID].values
+    ref_df = songs_feats_df[songs_feats_df[Column.IS_REF_PL] == 1]
+    ref_track_ids = ref_df[Column.TRACK_ID].values
     non_ref_track_ids = songs_feats_df[songs_feats_df[Column.IS_REF_PL] == 0][Column.TRACK_ID].values
 
     non_ref_artists = songs_feats_df[songs_feats_df[Column.IS_REF_PL] == 0][Column.TRACK_ARTISTS].values
 
     songs_feats_df_aux = songs_feats_df.copy().drop(columns=['mode', 'key', Column.TRACK_ID])
     
-    scaler = RobustScaler(#with_centering=True, 
-                          with_scaling=True)
-    songs_feats_df_aux = pd.DataFrame(scaler.fit_transform(songs_feats_df_aux.drop(columns=[Column.IS_REF_PL, Column.TRACK_ARTISTS])))
+    # scaler = RobustScaler(#with_centering=True, 
+    #                       with_scaling=True)
+    # scaler.fit(ref_df.drop(columns=[Column.IS_REF_PL, Column.TRACK_ARTISTS, 'mode', 'key', Column.TRACK_ID]))
+    # songs_feats_df_aux = pd.DataFrame(scaler.transform(songs_feats_df_aux.drop(columns=[Column.IS_REF_PL, Column.TRACK_ARTISTS])))
 
-    # for c in songs_feats_df_aux.columns:
-    #     if c not in [Column.IS_REF_PL, Column.TRACK_ARTISTS]:
-    #         songs_feats_df_aux[c] = ((songs_feats_df_aux[c] - songs_feats_df_aux[c].min()) 
-    #                                 /  
-    #                                 max(songs_feats_df_aux[c].max() - songs_feats_df_aux[c].min(), 0.00001)
-    #                                 )
+    for c in songs_feats_df_aux.columns:
+        if c not in [Column.IS_REF_PL, Column.TRACK_ARTISTS]:
+            songs_feats_df_aux[c] = ((songs_feats_df_aux[c] - ref_df[c].min()) 
+                                    /  
+                                    max(ref_df[c].max() - ref_df[c].min(), 0.00001)
+                                    )
             
-    ref_songs = songs_feats_df_aux[songs_feats_df[Column.IS_REF_PL] == 1]#.drop(columns=[Column.IS_REF_PL, Column.TRACK_ARTISTS])
-    non_ref_songs = songs_feats_df_aux[songs_feats_df[Column.IS_REF_PL] == 0]#.drop(columns=[Column.IS_REF_PL, Column.TRACK_ARTISTS])
+    ref_songs = songs_feats_df_aux[songs_feats_df[Column.IS_REF_PL] == 1].drop(columns=[Column.IS_REF_PL, Column.TRACK_ARTISTS])
+    non_ref_songs = songs_feats_df_aux[songs_feats_df[Column.IS_REF_PL] == 0].drop(columns=[Column.IS_REF_PL, Column.TRACK_ARTISTS])
             
     cosine_similarity_result = cosine_similarity(non_ref_songs, ref_songs)
 
@@ -169,7 +171,7 @@ def create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, songs_feats_df
 
         hr_and_filtered_df['pl_name'] = pl_name
 
-        hr_and_filtered_df = hr_and_filtered_df.drop_duplicates(subset=Column.TRACK_ID)
+        hr_and_filtered_df = hr_and_filtered_df.drop_duplicates(subset=Column.TRACK_ID).sort_values(by=REF_SIMIL_COL_PREFIX(1), ascending=False)
 
         pls_dfs.append(hr_and_filtered_df)
 
@@ -180,7 +182,6 @@ def create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, songs_feats_df
             logger.info(f'Creating "{pl_name}" playlist! {len(hr_and_filtered_df)} songs in this playlist.')
 
             error = create_playlist(sp, hr_and_filtered_df, config[Config.USER], pl_name)
-            error = None
 
             if error is not None:
                 logger.error(error)

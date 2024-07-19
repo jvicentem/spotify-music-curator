@@ -1,6 +1,8 @@
+import dotenv
 import pandas as pd
+
 from spoti_curator.constants import DEBUG_DF_PATH, Column, Config, get_config
-from spoti_curator.recommender import _feature_similarity, _hard_rules
+from spoti_curator.recommender import _feature_similarity
 from spoti_curator.spoti_utils import get_prev_pls_songs, get_songs_feats, get_songs_from_pl, login
 from spoti_curator.utils import transform_simil_df
 
@@ -58,7 +60,7 @@ def recreate_debug_pkl():
     simil_new_df[Column.IS_HARD_RULES] = simil_new_df['artists_str'].isin(count_artists_songs['artists_str'].values).astype(int)
         
     # remove duplicated songs
-    simil_new_df = pd.merge(simil_new_df, songs_in_pls_df[[Column.TRACK_ID, 'pl_name']], on=Column.TRACK_ID, how='inner')
+    simil_new_df = pd.merge(simil_new_df, songs_in_pls_df[[Column.TRACK_ID, 'pl_name']], on=Column.TRACK_ID, how='outer')
 
     debug_df = pd.merge(simil_new_df, songs_feats_df.drop(columns=[Column.TRACK_ARTISTS]), on=Column.TRACK_ID, how='inner')
 
@@ -70,6 +72,8 @@ def recreate_debug_pkl():
     debug_df.to_pickle(DEBUG_DF_PATH)
 
 if __name__ == '__main__':
+    dotenv.load_dotenv(dotenv_path='./spoti_curator/.env')
+ 
     recreate_debug_pkl()
 
 # ['track_id', 'artists', '1_ref', '2_ref', '3_ref', '4_ref', '5_ref',

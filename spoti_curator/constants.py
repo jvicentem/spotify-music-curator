@@ -8,10 +8,7 @@ ML_DF_PATH = f'{ASSETS_PATH}/ml_df.pkl'
 
 def get_config():
     with open(CONFIG_PATH) as stream:
-        try:
-            return yaml.safe_load(stream)
-        except yaml.YAMLError as exc:
-            return {}
+        return yaml.safe_load(stream)
 
 config = get_config()
 
@@ -24,6 +21,8 @@ class Column:
     IS_REF_PL = 'is_ref_pl'    
 
     IS_HARD_RULES = 'is_hard_rules'
+
+    LIKED_SONG = 'liked_song'
 
 class Config:
     ORIGIN_PLS = 'origin_playlists'
