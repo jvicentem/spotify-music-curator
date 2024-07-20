@@ -41,8 +41,6 @@ def create_ml_df(sp, config):
 
     #     # calculate custom subgenre     
 
-    pass
-
 def train_and_predict(df, to_pred_df):
     h2o.init()
 
