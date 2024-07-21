@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 
 import dotenv
@@ -29,8 +30,6 @@ def create_ml_df(sp, config):
 
     #feats_and_dists.shape
 
-    return feats_and_dists
-
     # save ml_df concatening it with prev ml_df   
 
     # for track_id, track_artists in feats_and_dists[[Column.TRACK_ID, Column.TRACK_ARTISTS]].items():
@@ -40,6 +39,8 @@ def create_ml_df(sp, config):
     #     # calculate embeddings (read clip_file_name, get embeddings)        
 
     #     # calculate custom subgenre     
+
+    return feats_and_dists
 
 def train_and_predict(df, to_pred_df):
     h2o.init()
@@ -87,7 +88,8 @@ def _train_models(df, target_column, features, n_models=100, max_time_per_model=
             train_preds = aml.leader.predict(aml.training_frame)[1].as_data_frame().values.ravel()
             val_predictions.append(train_preds)
 
-    # Prepare meta-learning dataset
+    # Prepare meta-learning dataset 
+    # TODO: metamodel trained with val_predictions??? this is weird...
     meta_X = np.column_stack(val_predictions)
     meta_data = h2o.H2OFrame(pd.DataFrame(meta_X, columns=[f'model_{i}' for i in range(n_models)]))
     meta_data[response] = h2o_df[response]
@@ -98,6 +100,24 @@ def _train_models(df, target_column, features, n_models=100, max_time_per_model=
 
     return models, meta_aml.leader
 
+def _save_automl_report(aml, output_path):
+    # Get the AutoML leaderboard
+    lb = aml.leaderboard
+    
+    # Convert to pandas DataFrame
+    lb_df = lb.as_data_frame()
+    
+    # Save to CSV
+    lb_df.to_csv(output_path, index=False)
+    print(f"AutoML leaderboard saved to {output_path}")
+
+    # Optionally, you can also save the model explanations if available
+    if aml.leader.have_summary():
+        explanation = aml.leader.explain(aml.training_frame)
+        explanation.to_csv(output_path.replace('.csv', '_explanation.csv'), index=False)
+        print(f"Model explanation saved to {output_path.replace('.csv', '_explanation.csv')}")
+
+
 def _predict(models, meta_model, X):
     h2o_X = h2o.H2OFrame(X)
     base_predictions = [model.predict(h2o_X)[1].as_data_frame().values.ravel() for model in models]
@@ -107,10 +127,14 @@ def _predict(models, meta_model, X):
 
 def _feats_model(df):
     features_to_use = ['danceability', 'energy', 'key', 'loudness', 'mode', 'speechiness', 'acousticness', 'instrumentalness', 'liveness', 'valence', 'tempo']
-
-    
     
     base_models, meta_model = _train_models(df, target_column=Column.LIKED_SONG, n_models=50, features=features_to_use)
+
+    today = datetime.today().strftime('%Y/%m/%d')
+
+    # Save the AutoML report for the meta-model
+    meta_aml = meta_model.model.get_params()['_automl']  # Access the AutoML object
+    _save_automl_report(meta_aml, f'meta_model_automl_report_{today}.csv')    
 
     return base_models, meta_model
 
@@ -126,5 +150,5 @@ if __name__ == '__main__':
     config = get_config()    
 
     ml_df = create_ml_df(sp, config)    
- 
-    create_ml_df()    
+
+    print(1)

@@ -30,5 +30,11 @@ pip-compile --output-file=./requirements.txt ./requirements.in
 
 pip3.10 install -r ./requirements.txt
 
+brew install --debug --verbose openjdk@11
+
+echo 'export PATH="/opt/homebrew/opt/openjdk@11/bin:$PATH"' >> ~/.zshrc
+
+sudo ln -sfn /opt/homebrew/opt/openjdk@11/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-11.jdk
+
 # crontab -e
 # 31 16 * * FRI bash /Users/jose/spotify-music-curator/start.sh >> /Users/jose/spotify-music-curator/out.log 2>&1
