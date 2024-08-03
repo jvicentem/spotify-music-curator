@@ -7,7 +7,7 @@ from spoti_curator.spoti_utils import get_prev_pls_songs, get_songs_feats, get_s
 from spoti_curator.utils import transform_simil_df
 
 
-def recreate_debug_pkl():
+def recreate_debug_csv():
     # login
     sp = login()
 
@@ -69,12 +69,12 @@ def recreate_debug_pkl():
     debug_df = debug_df.drop(columns=['artists_str'])
     
     # save df
-    debug_df.to_pickle(DEBUG_DF_PATH)
+    debug_df.to_csv(DEBUG_DF_PATH, index=False, sep=';')
 
 if __name__ == '__main__':
     dotenv.load_dotenv(dotenv_path='./spoti_curator/.env')
  
-    recreate_debug_pkl()
+    recreate_debug_csv()
 
 # ['track_id', 'artists', '1_ref', '2_ref', '3_ref', '4_ref', '5_ref',
 #        '6_ref', '7_ref', '8_ref', '9_ref', '10_ref', '11_ref', '12_ref',

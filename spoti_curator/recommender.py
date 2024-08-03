@@ -242,8 +242,9 @@ def _train_ml_model(train_df):
 
 def _save_debug_df(debug_df):
     if os.path.isfile(DEBUG_DF_PATH):
-        old_debug_df = pd.read_pickle(DEBUG_DF_PATH)
+        old_debug_df = pd.read_csv(DEBUG_DF_PATH, sep=';')
+        old_debug_df[Column.TRACK_ARTISTS] = old_debug_df[Column.TRACK_ARTISTS].apply(lambda x: eval(x) if str(x) != 'nan' else x)
 
         debug_df = pd.concat([old_debug_df, debug_df]).drop_duplicates(Column.TRACK_ID)
     
-    debug_df.to_pickle(DEBUG_DF_PATH) 
+    debug_df.to_csv(DEBUG_DF_PATH, index=False, sep=';') 

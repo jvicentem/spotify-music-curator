@@ -12,7 +12,9 @@ from spoti_curator.spoti_utils import create_playlist, get_prev_pls_songs, get_s
 
 def create_ml_df(sp, config):
     if os.path.isfile(DEBUG_DF_PATH):
-        debug_df = pd.read_pickle(DEBUG_DF_PATH)  
+        debug_df = pd.read_csv(DEBUG_DF_PATH, sep=';')  
+
+        debug_df[Column.TRACK_ARTISTS] = debug_df[Column.TRACK_ARTISTS].apply(lambda x: eval(x) if str(x) != 'nan' else x)
 
     # check what songs are in possitive class pl
 

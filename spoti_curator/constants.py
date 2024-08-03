@@ -3,8 +3,8 @@ import yaml
 
 CONFIG_PATH = './config/config.yaml' 
 ASSETS_PATH = './assets'
-DEBUG_DF_PATH = f'{ASSETS_PATH}/debug_df.pkl'
-ML_DF_PATH = f'{ASSETS_PATH}/ml_df.pkl'
+DEBUG_DF_PATH = f'{ASSETS_PATH}/debug_df.csv'
+ML_DF_PATH = f'{ASSETS_PATH}/ml_df.csv'
 
 def get_config():
     with open(CONFIG_PATH) as stream:
