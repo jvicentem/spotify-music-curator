@@ -18,7 +18,8 @@ class Column:
     TRACK_ARTISTS = 'artists'
 
     PL_URL = 'pl_url'
-    IS_REF_PL = 'is_ref_pl'    
+    IS_REF_PL = 'is_ref_pl'  
+    PL_NAME = 'pl_name'  
 
     IS_HARD_RULES = 'is_hard_rules'
 

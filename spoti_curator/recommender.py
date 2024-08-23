@@ -1,7 +1,7 @@
 import os
 import logging
 
-# from spoti_curator.ml import create_ml_df
+from spoti_curator.ml import create_ml_df, train_and_predict
 
 logging.basicConfig(filename='spoti_recommender.log',
                     format='%(asctime)s %(message)s',
@@ -169,9 +169,13 @@ def create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, songs_feats_df
         else:
             hr_and_filtered_df = filtered_df
 
-        hr_and_filtered_df['pl_name'] = pl_name
+        hr_and_filtered_df[Column.PL_NAME] = pl_name
 
         hr_and_filtered_df = hr_and_filtered_df.drop_duplicates(subset=Column.TRACK_ID).sort_values(by=REF_SIMIL_COL_PREFIX(1), ascending=False)
+
+        # # ml part
+        # ml_df = create_ml_df(sp, config)
+        # preds = train_and_predict(ml_df, simil_new_df)
 
         pls_dfs.append(hr_and_filtered_df)
 

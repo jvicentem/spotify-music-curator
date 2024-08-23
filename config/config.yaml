@@ -2,7 +2,7 @@
 result_playlists:
   worth_listening:
    name: "Fuzzy Stuff"
-   n_songs: 50
+   n_songs: 30
    similitude_range: [0.9, 0.5]
    artist_in_fav_pl_are_included: False
   best_matches:
