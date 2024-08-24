@@ -4,7 +4,7 @@ import yaml
 CONFIG_PATH = './config/config.yaml' 
 ASSETS_PATH = './assets'
 DEBUG_DF_PATH = f'{ASSETS_PATH}/debug_df.csv'
-ML_DF_PATH = f'{ASSETS_PATH}/ml_df.csv'
+ML_ASSETS_PATH = './ml_assets' 
 
 def get_config():
     with open(CONFIG_PATH) as stream:
@@ -24,6 +24,10 @@ class Column:
     IS_HARD_RULES = 'is_hard_rules'
 
     LIKED_SONG = 'liked_song'
+
+    PREDICTION = 'predict'
+    PRED_P1 = 'p1'
+    PRED_P0 = 'p0'
 
 class Config:
     ORIGIN_PLS = 'origin_playlists'
@@ -45,3 +49,5 @@ class Config:
     FAVED_ARTISTS_SECTION = 'faved_artists'
     MIN_SONGS_IN_FAV_PL = 'min_songs_in_fav_pl'
     FAV_PLAYLISTS_URL = 'fav_playlists_url'
+
+    USE_ML = 'use_ml'

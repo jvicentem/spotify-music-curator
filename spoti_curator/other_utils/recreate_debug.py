@@ -24,13 +24,13 @@ def recreate_debug_csv():
         if songs_in_ref_pls_df is None:
             songs_in_ref_pls_df = get_songs_from_pl(sp, pl)
         else:
-            songs_in_ref_pls_df = pd.concat([songs_in_ref_pls_df, get_songs_from_pl(sp, pl)])     
+            songs_in_ref_pls_df = pd.concat([songs_in_ref_pls_df, get_songs_from_pl(sp, pl)], ignore_index=True)     
 
     songs_in_ref_pls_df[Column.IS_REF_PL] = 1
 
     songs_in_ref_pls_df = songs_in_ref_pls_df.drop_duplicates(subset=Column.TRACK_ID)
 
-    songs_in_pls_df = pd.concat([prev_pls_songs_df, songs_in_ref_pls_df])  
+    songs_in_pls_df = pd.concat([prev_pls_songs_df, songs_in_ref_pls_df], ignore_index=True)  
 
     # calculate features
     songs_feats_df = get_songs_feats(sp, songs_in_pls_df)
@@ -43,7 +43,7 @@ def recreate_debug_csv():
     
     # calculate is_hard_rule column (groupby counts etc)
     fav_songs_df = pd.concat([get_songs_from_pl(sp, pl_url) 
-                              for pl_url in config[Config.FAVED_ARTISTS_SECTION][Config.FAV_PLAYLISTS_URL]])
+                              for pl_url in config[Config.FAVED_ARTISTS_SECTION][Config.FAV_PLAYLISTS_URL]], ignore_index=True)
     
     fav_songs_df['artists_str'] = fav_songs_df[Column.TRACK_ARTISTS].apply(lambda x: ':'.join(sorted(x)))
     simil_new_df['artists_str'] = simil_new_df[Column.TRACK_ARTISTS].apply(lambda x: ':'.join(sorted(x)))

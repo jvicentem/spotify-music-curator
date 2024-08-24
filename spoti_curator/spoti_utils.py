@@ -138,7 +138,7 @@ def get_prev_pls_songs(sp, config):
 
         prev_pls_songs.append(pl_songs_df)
 
-    return pd.concat(prev_pls_songs)    
+    return pd.concat(prev_pls_songs, ignore_index=True)    
 
 def get_song_clip():
     pass

@@ -5,11 +5,13 @@ result_playlists:
    n_songs: 30
    similitude_range: [0.9, 0.5]
    artist_in_fav_pl_are_included: False
+   use_ml: False
   best_matches:
     name: "Best Matches"
     n_songs: 30
     similitude_range: [1.0, 0.9]
     artist_in_fav_pl_are_included: True
+    use_ml: True
 origin_playlists:
   reference_playlist_url: 
     - "https://open.spotify.com/playlist/6NyjTAYxzLqkPmMY4Z7Lhq?si=0cad74ec1cc0482a"

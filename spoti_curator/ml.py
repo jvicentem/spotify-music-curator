@@ -7,8 +7,8 @@ from h2o.automl import H2OAutoML
 import numpy as np
 import pandas as pd
 
-from spoti_curator.constants import DEBUG_DF_PATH, ML_DF_PATH, Column, Config, get_config
-from spoti_curator.spoti_utils import create_playlist, get_prev_pls_songs, get_songs_feats, get_songs_from_pl, get_user_pls, login
+from spoti_curator.constants import DEBUG_DF_PATH, ML_ASSETS_PATH, Column, Config, get_config
+from spoti_curator.spoti_utils import get_songs_from_pl, login
 
 REF_PL_STRING = 'reference playlist'
 
@@ -62,8 +62,8 @@ def train_and_predict(train_df, to_pred_df):
     predictions = _predict(base_models, meta_model, to_pred_df[FEATURES_TO_USE])
 
     h2o.shutdown()
-    
-    return predictions.as_data_frame()
+
+    return predictions
 
 def _train_models(df, target_column, features, n_models=100, max_time_per_model=5*60):
     # Convert the entire dataframe to an H2OFrame
@@ -109,8 +109,9 @@ def _train_models(df, target_column, features, n_models=100, max_time_per_model=
     # For the moment, only one model is trained. Let's make things simple at the beginning...
 
     aml = H2OAutoML(max_runtime_secs=max_time_per_model,
-                    nfolds=0,  # This disables cross-validation
-                    balance_classes=False
+                    nfolds=2,
+                    balance_classes=False,
+                    seed=16
                     )
     aml.train(x=predictors, y=response, training_frame=h2o_df)
 
@@ -136,9 +137,9 @@ def _predict(models, meta_model, X):
         meta_X = h2o.H2OFrame(pd.DataFrame(np.column_stack(base_predictions), 
                                         columns=[f'model_{i}' for i in range(len(models))]))
         
-        return meta_model.predict(meta_X)[1].as_data_frame().values.ravel()
+        return meta_model.predict(meta_X)[0].as_data_frame().values.ravel()
     else:
-        return meta_model.predict(h2o_X)[1].as_data_frame().values.ravel()
+        return meta_model.predict(h2o_X).as_data_frame()
 
 def _feats_model(df):       
     base_models, meta_model = _train_models(df, target_column=Column.LIKED_SONG, n_models=50, features=FEATURES_TO_USE)
@@ -146,7 +147,7 @@ def _feats_model(df):
     today = datetime.today().strftime('%Y-%m-%d')
 
     # Save the AutoML report for the meta-model
-    _save_automl_report(meta_model, f'meta_model_automl_report_{today}.csv')    
+    _save_automl_report(meta_model, f'{ML_ASSETS_PATH}/meta_model_automl_report_{today}.csv')    
 
     return base_models, meta_model
 
