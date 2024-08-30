@@ -9,10 +9,12 @@ import pandas as pd
 
 from spoti_curator.constants import DEBUG_DF_PATH, ML_ASSETS_PATH, Column, Config, get_config
 from spoti_curator.spoti_utils import get_songs_from_pl, login
+from spoti_curator.utils import REF_SIMIL_COL_PREFIX_CONSTANT
 
 REF_PL_STRING = 'reference playlist'
 
 FEATURES_TO_USE = ['danceability', 'energy', 'key', 'loudness', 'mode', 'speechiness', 'acousticness', 'instrumentalness', 'liveness', 'valence', 'tempo']
+USE_DISTS_FEATS = True
 
 def create_ml_df(sp, config):
     if os.path.isfile(DEBUG_DF_PATH):
@@ -59,13 +61,19 @@ def train_and_predict(train_df, to_pred_df):
     h2o.init()
 
     base_models, meta_model = _feats_model(train_df)
-    predictions = _predict(base_models, meta_model, to_pred_df[FEATURES_TO_USE])
+    predictions = _predict(base_models, meta_model, to_pred_df)
 
     h2o.shutdown()
 
     return predictions
 
 def _train_models(df, target_column, features, n_models=100, max_time_per_model=5*60):
+    if USE_DISTS_FEATS:
+        for c in df.columns:
+            if REF_SIMIL_COL_PREFIX_CONSTANT in c:
+                if c not in features:
+                    features.append(c)
+
     # Convert the entire dataframe to an H2OFrame
     h2o_df = h2o.H2OFrame(df[features + [target_column]])
 
@@ -130,7 +138,7 @@ def _save_automl_report(aml, output_path):
 
 
 def _predict(models, meta_model, X):
-    h2o_X = h2o.H2OFrame(X)
+    h2o_X = h2o.H2OFrame(X.drop(columns=[Column.TRACK_ARTISTS]))
 
     if len(models) > 0:
         base_predictions = [model.predict(h2o_X)[1].as_data_frame().values.ravel() for model in models]

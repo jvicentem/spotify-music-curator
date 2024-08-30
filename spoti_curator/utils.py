@@ -5,8 +5,9 @@ import pandas as pd
 
 from spoti_curator.constants import CONFIG_PATH, Column
 
+REF_SIMIL_COL_PREFIX_CONSTANT = '_simil'
 REF_COL_PREFIX = lambda x: f'{x}_ref'
-REF_SIMIL_COL_PREFIX = lambda x: REF_COL_PREFIX(f'{x}_simil')
+REF_SIMIL_COL_PREFIX = lambda x: REF_COL_PREFIX(f'{x}{REF_SIMIL_COL_PREFIX_CONSTANT}')
         
 def transform_simil_df(simil_df, max_comparisons_val):
     # Assuming your original dataframe is named 'df'

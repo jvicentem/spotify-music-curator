@@ -80,7 +80,7 @@ def do_recommendation():
     ## apply hard rules (keep songs from faved artists)
     simil_new_df, only_hard_rules_df, prev_pls_songs = _hard_rules(sp, simil_new_df, fav_songs_df, config)     
 
-    debug_df = create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, songs_feats_df) #TODO: run everything until here, comenting the actual pl creation, screenshot of debug_df shape
+    debug_df = create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, songs_feats_df)
 
     _save_debug_df(debug_df)
 

@@ -10,8 +10,8 @@ result_playlists:
     name: "Best Matches"
     n_songs: 30
     similitude_range: [1.0, 0.9]
-    artist_in_fav_pl_are_included: True
-    use_ml: True
+    artist_in_fav_pl_are_included: False
+    use_ml: False
 origin_playlists:
   reference_playlist_url: 
     - "https://open.spotify.com/playlist/6NyjTAYxzLqkPmMY4Z7Lhq?si=0cad74ec1cc0482a"
@@ -32,6 +32,7 @@ origin_playlists:
     - "https://open.spotify.com/playlist/5NsZabBjLrejTFijmLwKV2?si=60762056b2004074" # spain wave
     - "https://open.spotify.com/playlist/4WDK9vUmvKv5t1zVXRF2FK?si=2c00a0a196a44615" # madcool 2024
     - "https://open.spotify.com/playlist/37i9dQZF1DX0CpdwmkC9SB?si=bcd27f16f36e4070" # glastonbury 2024
+    - "https://open.spotify.com/playlist/6r2096Qv8srhxf6JQMrDmi?si=493c4f30a8ca435c" # kalorama madrid 2024 
 faved_artists:
   min_songs_in_fav_pl: 3 # artists need to have at least this number of songs in fav pl to be considered (= 1 can create noise)
   fav_playlists_url: 
