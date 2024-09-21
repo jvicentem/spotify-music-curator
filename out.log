@@ -1,0 +1,50 @@
+:/Users/jose/spotify-music-curator
+Checking whether there is an H2O instance running at http://localhost:54321..... not found.
+Attempting to start a local H2O server...
+  Java Version: openjdk version "11.0.24" 2024-07-16; OpenJDK Runtime Environment Homebrew (build 11.0.24+0); OpenJDK 64-Bit Server VM Homebrew (build 11.0.24+0, mixed mode)
+  Starting server from /Users/jose/miniconda3/envs/spoti_curator/lib/python3.10/site-packages/h2o/backend/bin/h2o.jar
+  Ice root: /tmp/tmpl5obgwh4
+  JVM stdout: /tmp/tmpl5obgwh4/h2o_jose_started_from_python.out
+  JVM stderr: /tmp/tmpl5obgwh4/h2o_jose_started_from_python.err
+  Server is running at http://127.0.0.1:54321
+Connecting to H2O server at http://127.0.0.1:54321 ... successful.
+--------------------------  -----------------------------
+H2O_cluster_uptime:         03 secs
+H2O_cluster_timezone:       Europe/Madrid
+H2O_data_parsing_timezone:  UTC
+H2O_cluster_version:        3.46.0.4
+H2O_cluster_version_age:    1 month and 20 days
+H2O_cluster_name:           H2O_from_python_jose_gaf7i7
+H2O_cluster_total_nodes:    1
+H2O_cluster_free_memory:    4.500 Gb
+H2O_cluster_total_cores:    11
+H2O_cluster_allowed_cores:  11
+H2O_cluster_status:         locked, healthy
+H2O_connection_url:         http://127.0.0.1:54321
+H2O_connection_proxy:       {"http": null, "https": null}
+H2O_internal_security:      False
+Python_version:             3.10.14 final
+--------------------------  -----------------------------
+Parse progress: |████████████████████████████████████████████████████████████████| (done) 100%
+AutoML progress: |
+16:31:50.624: AutoML: XGBoost is not available; skipping it.
+
+
+16:31:51.277: GBM_1_AutoML_1_20240830_163150 [GBM def_5] failed: water.exceptions.H2OModelBuilderIllegalArgumentException: Illegal argument(s) for GBM model: GBM_1_AutoML_1_20240830_163150.  Details: ERRR on field: _min_rows: The dataset size is too small to split for min_rows=100.0: must have at least 200.0 (weighted) rows, but have only 174.0.
+ERRR on field: _min_rows: The dataset size is too small to split for min_rows=100.0: must have at least 200.0 (weighted) rows, but have only 175.0.
+
+
+███████████████████████████████████████████████████████████████| (done) 100%
+/Users/jose/miniconda3/envs/spoti_curator/lib/python3.10/site-packages/h2o/frame.py:1981: H2ODependencyWarning: Converting H2O frame to pandas dataframe using single-thread.  For faster conversion using multi-thread, install polars and pyarrow and use it as pandas_df = h2o_df.as_data_frame(use_multi_thread=True)
+
+  warnings.warn("Converting H2O frame to pandas dataframe using single-thread.  For faster conversion using"
+AutoML leaderboard saved to ./ml_assets/meta_model_automl_report_2024-08-30.csv
+Parse progress: |████████████████████████████████████████████████████████████████| (done) 100%
+deeplearning prediction progress: |/Users/jose/miniconda3/envs/spoti_curator/lib/python3.10/site-packages/h2o/frame.py:1981: H2ODependencyWarning: Converting H2O frame to pandas dataframe using single-thread.  For faster conversion using multi-thread, install polars and pyarrow and use it as pandas_df = h2o_df.as_data_frame(use_multi_thread=True)
+
+  warnings.warn("Converting H2O frame to pandas dataframe using single-thread.  For faster conversion using"
+/Users/jose/spotify-music-curator/spoti_curator/ml.py:64: H2ODeprecationWarning: Deprecated, use ``h2o.cluster().shutdown()``.
+  h2o.shutdown()
+██████████████████████████████████████████████| (done) 100%
+H2O session _sid_95c6 closed.
+Password:

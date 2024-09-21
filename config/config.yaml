@@ -10,7 +10,7 @@ result_playlists:
     name: "Best Matches"
     n_songs: 30
     similitude_range: [1.0, 0.9]
-    artist_in_fav_pl_are_included: False
+    artist_in_fav_pl_are_included: True
     use_ml: False
 origin_playlists:
   reference_playlist_url: 
@@ -20,23 +20,19 @@ origin_playlists:
     - "https://open.spotify.com/playlist/3ivSu20CWXjveS2h2qZ54K?si=2dfcf9865bbc4501" # ready for the weekend
     - "https://open.spotify.com/playlist/5FJ5R13o9A1l018qE0vI88?si=3c139f246c8340d3" # capitan demo
     - "https://open.spotify.com/playlist/5NsZabBjLrejTFijmLwKV2?si=ed983c97348b48cb" # spain new wave
-    - "https://open.spotify.com/playlist/2yq4iaXGrLa69oHXGm9olQ?si=3a115915e15b41ee" # primavera sound 2024
     - "https://open.spotify.com/playlist/3Di88mvYplBtkDBIzGLiiM?si=6d4529e2d42846a1" # edm hits
     - "https://open.spotify.com/playlist/37i9dQZF1DX8gDIpdqp1XJ?si=ff83b08823ba4187" # modern psychedelia
-    - "https://open.spotify.com/playlist/37i9dQZF1DWVhn3qoy98w6?si=20131d0d2cf84ab3" # fresh finds espana
     - "https://open.spotify.com/playlist/37i9dQZF1DWT0upuUFtT7o?si=b50fdb9639644ea9" # fresh finds indie
     - "https://open.spotify.com/playlist/37i9dQZF1DX78toxP7mOaJ?si=c8ca835eaa15466b" # fresh finds rock
     - "https://open.spotify.com/playlist/37i9dQZF1DX6bBjHfdRnza?si=a451034945aa4bbb" # fresh finds dance
     - "https://open.spotify.com/playlist/37i9dQZF1DX8C585qnMYHP?si=ce2e9cce041b47c7" # fresh finds experimental
     - "https://open.spotify.com/playlist/22XHJsFcjUYZi84RzkMPr2?si=4c7e7c09ec564215" # popurri de la semana
     - "https://open.spotify.com/playlist/5NsZabBjLrejTFijmLwKV2?si=60762056b2004074" # spain wave
-    - "https://open.spotify.com/playlist/4WDK9vUmvKv5t1zVXRF2FK?si=2c00a0a196a44615" # madcool 2024
-    - "https://open.spotify.com/playlist/37i9dQZF1DX0CpdwmkC9SB?si=bcd27f16f36e4070" # glastonbury 2024
-    - "https://open.spotify.com/playlist/6r2096Qv8srhxf6JQMrDmi?si=493c4f30a8ca435c" # kalorama madrid 2024 
+    - "https://open.spotify.com/playlist/37i9dQZF1DX3wF1YbAXxkA?si=2e0YBL46RRuu8zWa0qcLdQ" # fc25 pl
 faved_artists:
   min_songs_in_fav_pl: 3 # artists need to have at least this number of songs in fav pl to be considered (= 1 can create noise)
   fav_playlists_url: 
-    - "https://open.spotify.com/playlist/0Zu81wbBbw1B0onTyVYpLN?si=f75b4124e46144b8"
+    - "https://open.spotify.com/playlist/0Zu81wbBbw1B0onTyVYpLN?si=f75b4124e46144b8" # my favs pl
     - "https://open.spotify.com/playlist/7eSCDwgV6yHpuawWURu8qD?si=f16b42eff58f4136" # outliers pl
 positive_class_pl: "https://open.spotify.com/playlist/7zbRh4zP0SVtviSYoqn9DM?si=12e7335b56164880"
 user: "1199533427"
