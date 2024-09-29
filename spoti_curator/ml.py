@@ -14,7 +14,7 @@ from spoti_curator.utils import REF_SIMIL_COL_PREFIX_CONSTANT
 REF_PL_STRING = 'reference playlist'
 
 FEATURES_TO_USE = ['danceability', 'energy', 'key', 'loudness', 'mode', 'speechiness', 'acousticness', 'instrumentalness', 'liveness', 'valence', 'tempo']
-USE_DISTS_FEATS = True
+USE_DISTANCES_FEATS = True
 
 def create_ml_df(sp, config):
     if os.path.isfile(DEBUG_DF_PATH):
@@ -31,14 +31,22 @@ def create_ml_df(sp, config):
 
     # get distances and features (use past debug_df if possible)
     feats_and_dists = debug_df.copy()
-    feats_and_dists[Column.LIKED_SONG] = feats_and_dists[Column.TRACK_ID].isin(positive_songs).astype(int) | (feats_and_dists[Column.IS_REF_PL] == 1).astype(int)
+    feats_and_dists[Column.LIKED_SONG] = (feats_and_dists[Column.TRACK_ID].isin(positive_songs) | (feats_and_dists[Column.IS_REF_PL] == 1)).astype(int)
 
     feats_and_dists[Column.PL_NAME] = feats_and_dists[Column.PL_NAME].fillna(REF_PL_STRING)
 
-    feats_and_dists = feats_and_dists[feats_and_dists[Column.PL_NAME]
-                                      .apply(lambda x: 
-                                             any(y in x for y in [config[Config.RESULT_PLS]['best_matches'][Config.PL_NAME], REF_PL_STRING])
-                                             )]
+    feats_and_dists = feats_and_dists[
+        (
+            feats_and_dists[Column.PL_NAME]
+            .apply(lambda x: any(y in x for y in [config[Config.RESULT_PLS]['best_matches'][Config.PL_NAME], REF_PL_STRING]))
+        ) 
+        | 
+        (
+            (feats_and_dists[Column.PL_NAME] == config[Config.RESULT_PLS]['worth_listening'][Config.PL_NAME]) & 
+            (feats_and_dists[Column.LIKED_SONG] == 1)
+        )
+    ]
+
 
     # as a first version, let's use ML on features or distances
     #feats_and_dists['liked_song'].value_counts(normalize=True)
@@ -68,7 +76,7 @@ def train_and_predict(train_df, to_pred_df):
     return predictions
 
 def _train_models(df, target_column, features, n_models=100, max_time_per_model=5*60):
-    if USE_DISTS_FEATS:
+    if USE_DISTANCES_FEATS:
         for c in df.columns:
             if REF_SIMIL_COL_PREFIX_CONSTANT in c:
                 if c not in features:

@@ -1,17 +1,17 @@
 ---
 result_playlists:
-  worth_listening:
-   name: "Fuzzy Stuff"
-   n_songs: 30
-   similitude_range: [0.9, 0.5]
-   artist_in_fav_pl_are_included: False
-   use_ml: False
   best_matches:
     name: "Best Matches"
-    n_songs: 30
+    n_songs: 50
     similitude_range: [1.0, 0.9]
     artist_in_fav_pl_are_included: True
     use_ml: False
+  worth_listening:
+   name: "Fuzzy Stuff"
+   n_songs: 30
+   similitude_range: [0.98, 0.5] # overlap on purpose, but this playlist must be placed always after best matches playlist. this way fuzzy will pick up songs with hi simil that were left out in best matches because of n songs limit
+   artist_in_fav_pl_are_included: False
+   use_ml: False    
 origin_playlists:
   reference_playlist_url: 
     - "https://open.spotify.com/playlist/6NyjTAYxzLqkPmMY4Z7Lhq?si=0cad74ec1cc0482a"
@@ -29,6 +29,7 @@ origin_playlists:
     - "https://open.spotify.com/playlist/22XHJsFcjUYZi84RzkMPr2?si=4c7e7c09ec564215" # popurri de la semana
     - "https://open.spotify.com/playlist/5NsZabBjLrejTFijmLwKV2?si=60762056b2004074" # spain wave
     - "https://open.spotify.com/playlist/37i9dQZF1DX3wF1YbAXxkA?si=2e0YBL46RRuu8zWa0qcLdQ" # fc25 pl
+    - "https://open.spotify.com/playlist/0okFxg6e3F3oZSZGq8kwY0?si=fcfa22ba530a428d" # radar joven
 faved_artists:
   min_songs_in_fav_pl: 3 # artists need to have at least this number of songs in fav pl to be considered (= 1 can create noise)
   fav_playlists_url: 
