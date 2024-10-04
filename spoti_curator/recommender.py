@@ -134,13 +134,18 @@ def create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, songs_feats_df
         filtered_df = simil_new_df[(simil_new_df[REF_SIMIL_COL_PREFIX(1)] > min_simil_range) 
                                    & (simil_new_df[REF_SIMIL_COL_PREFIX(1)] < max_simil_range)]
         
+        if len(pls_dfs) > 0:
+            already_added_songs = [item for df in pls_dfs for item in df[Column.TRACK_ID].tolist()]
+            filtered_df = filtered_df[ ~filtered_df[Column.TRACK_ID].isin(already_added_songs) ]
+        
         filtered_df = filtered_df.sort_values(by=REF_SIMIL_COL_PREFIX(1), ascending=False)
 
         if not pl[Config.USE_ML]:
             filtered_df = filtered_df.head(pl[Config.N_SONGS])
 
             if pl[Config.INCLUDE_FAV_ARTISTS]:        
-                hr_and_filtered_df = pd.merge(filtered_df, only_hard_rules_df[[Column.TRACK_ID, Column.IS_HARD_RULES]], on=[Column.TRACK_ID, Column.IS_HARD_RULES], how='outer')
+                hr_and_filtered_df = pd.merge(filtered_df, only_hard_rules_df[[Column.TRACK_ID, Column.IS_HARD_RULES]], 
+                                              on=[Column.TRACK_ID, Column.IS_HARD_RULES], how='outer')
             else:
                 hr_and_filtered_df = filtered_df
 
