@@ -8,7 +8,7 @@ result_playlists:
     use_ml: False
   worth_listening:
    name: "Fuzzy Stuff"
-   n_songs: 30
+   n_songs: 50
    similitude_range: [0.99, 0.5] # overlap on purpose, but this playlist must be placed always after best matches playlist. this way fuzzy will pick up songs with hi simil that were left out in best matches because of n songs limit
    artist_in_fav_pl_are_included: False
    use_ml: False    
