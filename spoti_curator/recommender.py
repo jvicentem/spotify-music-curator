@@ -119,12 +119,15 @@ def _feature_similarity(songs_feats_df):
 
 def create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, songs_feats_df):
     # let's know first how many pls we are going to create, and what is their configuration
-    pls_to_create = config[Config.RESULT_PLS]
+    result_playlists = [v for _, v in config[Config.RESULT_PLS].items()]
+
+    # Sort list by 'order' field
+    pls_to_create = sorted(result_playlists, key=lambda x: x['order'])    
 
     pls_dfs = []
 
     # for each pl to create
-    for _, pl in pls_to_create.items():
+    for pl in pls_to_create:
         pl_name = f'{pl[Config.PL_NAME]} ({today})'
 
         min_simil_range = min(pl[Config.SIMILITUDE_RANGE])
