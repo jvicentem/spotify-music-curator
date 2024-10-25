@@ -51,3 +51,5 @@ class Config:
     FAV_PLAYLISTS_URL = 'fav_playlists_url'
 
     USE_ML = 'use_ml'
+
+    ML_METRIC_THRESH = 'ml_metric_thresh'

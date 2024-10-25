@@ -143,7 +143,26 @@ def create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, songs_feats_df
         
         filtered_df = filtered_df.sort_values(by=REF_SIMIL_COL_PREFIX(1), ascending=False)
 
-        if not pl[Config.USE_ML]:
+        ml_flag = pl[Config.USE_ML]
+
+        if ml_flag:
+            # create ml df for training
+            ml_df = create_ml_df(sp, config)
+
+            # create df of the songs to be detected
+            to_pred_df = songs_feats_df[songs_feats_df[Column.TRACK_ID].isin(simil_new_df[Column.TRACK_ID])]
+
+            preds, cv_metric = train_and_predict(ml_df, to_pred_df)
+            preds = preds.drop(columns=['p0'])        
+
+            preds[Column.PRED_P1] = preds[Column.PRED_P1].round(2)
+
+            if cv_metric < config[Config.ML_METRIC_THRESH]:
+                ml_flag = False
+
+                logger.info(f'ML not used! Model not good enough. Metric={cv_metric}')
+
+        if not ml_flag:
             filtered_df = filtered_df.head(pl[Config.N_SONGS])
 
             if pl[Config.INCLUDE_FAV_ARTISTS]:        
@@ -156,40 +175,38 @@ def create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, songs_feats_df
 
             hr_and_filtered_df = hr_and_filtered_df.drop_duplicates(subset=Column.TRACK_ID).sort_values(by=REF_SIMIL_COL_PREFIX(1), ascending=False)
 
-        # ml logic (if used, always alongside the simil logic above)
-        if pl[Config.USE_ML]:
-            # create ml df for training
-            ml_df = create_ml_df(sp, config)
-
-            # create df of the songs to be detected
-            to_pred_df = songs_feats_df[songs_feats_df[Column.TRACK_ID].isin(simil_new_df[Column.TRACK_ID])]
-
-            preds = train_and_predict(ml_df, to_pred_df).drop(columns=['p0'])
-
-            # concat predictions
+        else: # ML logic
+            # concat predictions column
             to_pred_with_preds = pd.concat([to_pred_df.reset_index(drop=True), preds.reset_index(drop=True)], axis=1)
 
             # add simils
             to_pred_with_preds = pd.merge(to_pred_with_preds, simil_new_df.drop(columns=[Column.TRACK_ARTISTS]), on=Column.TRACK_ID, how='inner')
 
-            # add hard_rules
-            hr_and_filtered_df_aux = pd.merge(to_pred_with_preds.drop(columns=[Column.IS_HARD_RULES]), 
-                                              only_hard_rules_df[[Column.TRACK_ID, Column.IS_HARD_RULES]], on=[Column.TRACK_ID], how='outer')
+            # add hard_rules        
+            hr_and_filtered_df_aux = to_pred_with_preds.drop(columns=[Column.IS_HARD_RULES])
+
+            if pl[Config.INCLUDE_FAV_ARTISTS]:   
+                hr_and_filtered_df_aux = pd.merge(hr_and_filtered_df_aux, 
+                                                  only_hard_rules_df[[Column.TRACK_ID, Column.IS_HARD_RULES]], on=[Column.TRACK_ID], how='outer')           
 
             hr_and_filtered_df_aux = hr_and_filtered_df_aux.fillna({Column.PREDICTION: -1.0,  Column.PRED_P1: -1.0, Column.IS_HARD_RULES: 0})
 
-            # make sure the final df is built correctly: redoing it again little by little
-            hard_rules_songs = hr_and_filtered_df_aux[hr_and_filtered_df_aux[Column.IS_HARD_RULES] == 1]
+            # make sure the final df is built correctly: redoing it again little by little            
             ok_pred_songs = hr_and_filtered_df_aux[hr_and_filtered_df_aux[Column.PREDICTION] == 1]
             ok_simil_songs = hr_and_filtered_df_aux[hr_and_filtered_df_aux[Column.TRACK_ID].isin(filtered_df[Column.TRACK_ID])]
 
             pred_and_simil_ok_songs = pd.concat([ok_pred_songs, ok_simil_songs], ignore_index=True).drop_duplicates(subset=Column.TRACK_ID)
             pred_and_simil_ok_songs = (pred_and_simil_ok_songs
+                                       .drop_duplicates(subset=Column.TRACK_ID)
                                        .sort_values(by=[Column.PRED_P1, REF_SIMIL_COL_PREFIX(1)], ascending=[False, False])
                                        .head(pl[Config.N_SONGS])
                                        )
             
-            hr_and_filtered_df_aux = pd.concat([pred_and_simil_ok_songs, hard_rules_songs], ignore_index=True)
+            if pl[Config.INCLUDE_FAV_ARTISTS]:      
+                hard_rules_songs = hr_and_filtered_df_aux[hr_and_filtered_df_aux[Column.IS_HARD_RULES] == 1]
+                hr_and_filtered_df_aux = pd.concat([pred_and_simil_ok_songs, hard_rules_songs], ignore_index=True)
+            else:
+                hr_and_filtered_df_aux = pred_and_simil_ok_songs
             
             hr_and_filtered_df = (hr_and_filtered_df_aux
                                   .dropna(subset=[Column.TRACK_ID])

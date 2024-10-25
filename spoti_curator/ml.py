@@ -68,12 +68,12 @@ def create_ml_df(sp, config):
 def train_and_predict(train_df, to_pred_df):
     h2o.init()
 
-    base_models, meta_model = _feats_model(train_df)
+    base_models, meta_model, cv_metric = _feats_model(train_df)
     predictions = _predict(base_models, meta_model, to_pred_df)
 
     h2o.shutdown()
 
-    return predictions
+    return predictions, cv_metric
 
 def _train_models(df, target_column, features, n_models=100, max_time_per_model=5*60):
     if USE_DISTANCES_FEATS:
@@ -127,11 +127,16 @@ def _train_models(df, target_column, features, n_models=100, max_time_per_model=
     aml = H2OAutoML(max_runtime_secs=max_time_per_model,
                     nfolds=2,
                     balance_classes=False,
-                    seed=16
-                    )
+                    seed=16,
+                    stopping_metric='AUCPR',
+                    sort_metric='AUCPR'
+                    ) 
+    
     aml.train(x=predictors, y=response, training_frame=h2o_df)
 
-    return [], aml
+    cv_metric = aml.leader.metric('aucpr')[0][1]
+
+    return [], aml, cv_metric
 
 def _save_automl_report(aml, output_path):
     # Get the AutoML leaderboard
@@ -158,14 +163,14 @@ def _predict(models, meta_model, X):
         return meta_model.predict(h2o_X).as_data_frame()
 
 def _feats_model(df):       
-    base_models, meta_model = _train_models(df, target_column=Column.LIKED_SONG, n_models=50, features=FEATURES_TO_USE)
+    base_models, meta_model, cv_metric = _train_models(df, target_column=Column.LIKED_SONG, n_models=50, features=FEATURES_TO_USE)
 
     today = datetime.today().strftime('%Y-%m-%d')
 
     # Save the AutoML report for the meta-model
     _save_automl_report(meta_model, f'{ML_ASSETS_PATH}/meta_model_automl_report_{today}.csv')    
 
-    return base_models, meta_model
+    return base_models, meta_model, cv_metric
 
 if __name__ == '__main__':
     dotenv.load_dotenv(dotenv_path='./spoti_curator/.env')
