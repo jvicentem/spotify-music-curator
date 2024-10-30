@@ -1,6 +1,11 @@
+from datetime import datetime
 import os
 import logging
 
+import numpy as np
+
+
+from spoti_curator.embeddings import GenreAnalyzer
 from spoti_curator.ml import create_ml_df, train_and_predict, FEATURES_TO_USE
 
 logging.basicConfig(filename='spoti_recommender.log',
@@ -10,15 +15,14 @@ logging.basicConfig(filename='spoti_recommender.log',
 
 logger = logging.getLogger()
 
-from datetime import datetime
-
 today = datetime.today().strftime('%Y/%m/%d')
 
 import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
+import torch
 
 from spoti_curator.constants import DEBUG_DF_PATH, Column, Config, get_config
-from spoti_curator.spoti_utils import create_playlist, get_prev_pls_songs, get_songs_feats, get_songs_from_pl, get_user_pls, login
+from spoti_curator.spoti_utils import create_playlist, get_prev_pls_songs, get_songs_feats, get_songs_from_pl, get_user_pls, get_artists_genres, login
 from spoti_curator.utils import REF_SIMIL_COL_PREFIX, transform_simil_df
 
 
@@ -63,6 +67,16 @@ def do_recommendation():
     # get song features
     songs_feats_df = get_songs_feats(sp, songs_in_pls_df)
 
+    # # get artists genres embeddings TODO uncomment this
+    # if config[Config.USE_GENRE_SIMIL]:
+    #   artists_genres_df = get_artists_genres(sp, songs_in_pls_df[Column.TRACK_ARTISTS].to_list())
+    #   songs_in_pls_emb_df = _get_songs_genres_embeddings(songs_in_pls_df, artists_genres_df)
+
+    #   songs_with_emb_simil_df = _get_genres_similarities(songs_in_pls_emb_df)
+
+    #   simil_genres_new_df = transform_simil_df(songs_with_emb_simil_df, 3)
+    #   simil_genres_new_df.columns = [c if '_ref' not in c else c + '_genre' for c in simil_genres_new_df.columns]
+
     # calculating feature similarity for the found songs
     simil_df = _feature_similarity(songs_feats_df)
 
@@ -74,6 +88,12 @@ def do_recommendation():
     # create columns for the similitudes of the previous ref songs like this 1_ref_simil, 2_ref_simil, 3_ref_simil
     simil_new_df = transform_simil_df(simil_df, config[Config.MAX_COMPARISONS])   
 
+    # if config[Config.USE_GENRE_SIMIL]:
+    # #   TODO: embeddings similitude, also think how to modify the ref similarities df...
+    # # create new columns in the dataframes and debug.csv. If use_genres then use the distance columns from songs that are a genre match, otherwise the default ones        
+    # # and finally, in the create_reco_pls pass as input what column use as distance (it will be either the default one or the "fixed" one)
+    #     pass
+
     fav_songs_df = pd.concat([get_songs_from_pl(sp, pl_url) 
                               for pl_url in config[Config.FAVED_ARTISTS_SECTION][Config.FAV_PLAYLISTS_URL]], ignore_index=True)
     
@@ -83,6 +103,53 @@ def do_recommendation():
     debug_df = create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, songs_feats_df)
 
     _save_debug_df(debug_df)
+
+def transform_ref_simil_df(songs_with_emb_simil_df: pd.DataFrame):
+    pass
+
+def _get_genres_similarities(songs_in_pls_emb_df: pd.DataFrame):
+    ref_df = songs_in_pls_emb_df[songs_in_pls_emb_df[Column.IS_REF_PL] == 1]
+    ref_track_ids = ref_df[Column.TRACK_ID].values
+
+    non_ref_songs = songs_in_pls_emb_df[songs_in_pls_emb_df[Column.IS_REF_PL] == 0]
+
+    ref_songs_embeddings_vals = ref_df[Column.GENRE_EMBEDDING].values
+    non_ref_songs_with_embeddings_vals = non_ref_songs[non_ref_songs[Column.GENRE_EMBEDDING].apply(lambda x: len(x) > 0)][Column.GENRE_EMBEDDING].values
+    non_ref_songs_without_embeddings = non_ref_songs[non_ref_songs[Column.GENRE_EMBEDDING].apply(lambda x: len(x) > 0)]
+
+    # Convert array of arrays to 2D array
+    ref_songs_2d = np.stack(ref_songs_embeddings_vals)
+    non_ref_songs_2d = np.stack(non_ref_songs_with_embeddings_vals)
+
+    # Now calculate similarity
+    cosine_similarity_result = cosine_similarity(non_ref_songs_2d, ref_songs_2d)
+
+    cosine_similarity_df = pd.DataFrame(cosine_similarity_result)
+
+    cosine_similarity_df.columns = ref_track_ids
+    cosine_similarity_df[Column.TRACK_ID] = non_ref_songs_without_embeddings[Column.TRACK_ID]
+    cosine_similarity_df[Column.TRACK_ARTISTS] = non_ref_songs_without_embeddings[Column.TRACK_ARTISTS]
+
+    return cosine_similarity_df       
+
+def _get_songs_genres_embeddings(songs_in_pls_df: pd.DataFrame, artists_genres_df: pd.DataFrame):
+    # Initialize the analyzer
+    analyzer = GenreAnalyzer(device="cuda" if torch.cuda.is_available() else "cpu",
+                             model_name='sentence-transformers/all-MiniLM-L6-v2')
+
+    # Process multiple texts
+    artists_with_genres_df = artists_genres_df[artists_genres_df[Column.GENRES] != ''].copy()
+
+    texts = ['Music genres that define a music band: ' + g for g in artists_with_genres_df[Column.GENRES]]
+    embeddings = analyzer.get_embedding(texts)
+
+    artists_with_genres_df[Column.GENRE_EMBEDDING] = embeddings.tolist()
+
+    artists_genres_dict = {k: embeddings[i] for i, k in enumerate(artists_with_genres_df['artist'])}
+
+    songs_in_pls_df[Column.GENRE_EMBEDDING] = songs_in_pls_df[Column.TRACK_ARTISTS].apply(lambda x: artists_genres_dict.get(x[0], []))
+
+    return songs_in_pls_df
 
 def _feature_similarity(songs_feats_df):
     """

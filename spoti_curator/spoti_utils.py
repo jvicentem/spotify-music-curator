@@ -1,3 +1,5 @@
+from collections import Counter
+
 import pandas as pd
 import spotipy
 from spoti_curator.constants import Column, Config
@@ -139,6 +141,61 @@ def get_prev_pls_songs(sp, config):
         prev_pls_songs.append(pl_songs_df)
 
     return pd.concat(prev_pls_songs, ignore_index=True)    
+
+def get_artists_genres(sp, artists_list):
+    unique_artists = list(set([artists[0] for artists in artists_list]))
+
+    # Process in batches of 100
+
+    ref_artists_info_aux = None
+    for i in range(0, len(unique_artists), 50):
+        batch = unique_artists[i:i+50]
+
+        if ref_artists_info_aux is None:
+            ref_artists_info_aux = sp.artists(batch)
+        else:
+            ref_artists_info_aux['artists'] += sp.artists(batch)['artists']
+
+    artists_missing_genres = {}
+    for t in ref_artists_info_aux['artists']:
+        if len(t['genres']) == 0:
+            artists_missing_genres[t['id']] = []
+
+    for am_id, _ in artists_missing_genres.items():
+        genres = []
+
+        rel_artists = sp.artist_related_artists(am_id)
+
+        for ra in rel_artists['artists']:
+            for g in ra['genres']:
+                genres.append(g)
+        
+        count_genres = Counter(genres)
+
+        final_genres = []
+        for c in count_genres.keys():
+            if count_genres[c] > 1:
+                final_genres.append(c)
+
+            if len(final_genres) == 3:
+                break
+
+        artists_missing_genres[am_id] = final_genres
+
+    artist_ids = []
+    genres = []
+
+    for t in ref_artists_info_aux['artists']:
+        artist_ids.append(t['id'])
+
+        if t['id'] in list(artists_missing_genres.keys()):
+            genres.append(', '.join(artists_missing_genres[t['id']]))  
+        else:  
+            genres.append(', '.join(t['genres']))
+
+    artists_genres_df = pd.DataFrame({'artist': artist_ids, Column.GENRES: genres})
+
+    return artists_genres_df
 
 def get_song_clip():
     pass

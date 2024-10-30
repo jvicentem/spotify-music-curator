@@ -29,6 +29,9 @@ class Column:
     PRED_P1 = 'p1'
     PRED_P0 = 'p0'
 
+    GENRES = 'genres'
+    GENRE_EMBEDDING = 'genre_embedding'
+
 class Config:
     ORIGIN_PLS = 'origin_playlists'
     PLS_TO_CURATE = 'playlists_to_curate'
@@ -53,3 +56,5 @@ class Config:
     USE_ML = 'use_ml'
 
     ML_METRIC_THRESH = 'ml_metric_thresh'
+
+    USE_GENRE_SIMIL = 'use_genre_simil'

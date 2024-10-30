@@ -14,7 +14,7 @@ from spoti_curator.utils import REF_SIMIL_COL_PREFIX_CONSTANT
 REF_PL_STRING = 'reference playlist'
 
 FEATURES_TO_USE = ['danceability', 'energy', 'key', 'loudness', 'mode', 'speechiness', 'acousticness', 'instrumentalness', 'liveness', 'valence', 'tempo']
-USE_DISTANCES_FEATS = True
+USE_DISTANCES_FEATS = False
 
 def create_ml_df(sp, config):
     if os.path.isfile(DEBUG_DF_PATH):

@@ -1,7 +1,9 @@
-spotipy
+spotipy==2.24.0
 scikit-learn
-pandas
+pandas==2.2.2
 scipy
 pyyaml
 python-dotenv
-h2o
+h2o==3.46.0.4
+transformers
+torch
