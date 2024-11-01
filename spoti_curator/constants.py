@@ -6,6 +6,8 @@ ASSETS_PATH = './assets'
 DEBUG_DF_PATH = f'{ASSETS_PATH}/debug_df.csv'
 ML_ASSETS_PATH = './ml_assets' 
 
+FIX_GENRE_SIMIL_SUFFIX = '_genre_fix'
+
 def get_config():
     with open(CONFIG_PATH) as stream:
         return yaml.safe_load(stream)
@@ -31,6 +33,7 @@ class Column:
 
     GENRES = 'genres'
     GENRE_EMBEDDING = 'genre_embedding'
+    IS_GENRE_FIX = 'is_genre_fix'
 
 class Config:
     ORIGIN_PLS = 'origin_playlists'
