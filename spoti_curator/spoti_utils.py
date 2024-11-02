@@ -142,7 +142,7 @@ def get_prev_pls_songs(sp, config):
 
     return pd.concat(prev_pls_songs, ignore_index=True)    
 
-def get_artists_genres(sp, artists_list):
+def get_artists_genres(sp, artists_list, manipulate_genres=False):
     unique_artists = list(set([artists[0] for artists in artists_list]))
 
     # Process in batches of 100
@@ -168,7 +168,13 @@ def get_artists_genres(sp, artists_list):
 
         for ra in rel_artists['artists']:
             for g in ra['genres']:
-                genres.append(g)
+                if manipulate_genres:
+                    aux_g = g.replace('pop', '')
+
+                    if aux_g not in genres and aux_g != '':
+                        genres.append(aux_g)
+                else:
+                    genres.append(g)
         
         count_genres = Counter(genres)
 
@@ -191,9 +197,18 @@ def get_artists_genres(sp, artists_list):
         if t['id'] in list(artists_missing_genres.keys()):
             genres.append(', '.join(artists_missing_genres[t['id']]))  
         else:  
-            genres.append(', '.join(t['genres']))
+            if manipulate_genres:
+                genres_manipulated = [gg.replace('pop', '') for gg in t['genres'] if gg.replace('pop', '') != '']
+
+                genres.append(', '.join(list(set(genres_manipulated))))
+            else:
+                genres.append(', '.join(t['genres']))
 
     artists_genres_df = pd.DataFrame({'artist': artist_ids, Column.GENRES: genres})
+
+    if manipulate_genres:        
+        artists_genres_df.loc[artists_genres_df['artist'] == '54R6Y0I7jGUCveDTtI21nb', Column.GENRES] = 'funk, disco, reggae, r&b'
+        artists_genres_df.loc[artists_genres_df['artist'] == '6M2wZ9GZgrQXHCFfjv46we', Column.GENRES] = 'disco, funk, synth'
 
     return artists_genres_df
 

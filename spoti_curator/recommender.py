@@ -69,7 +69,7 @@ def do_recommendation():
 
     # get artists genres embeddings TODO uncomment this
     if config[Config.USE_GENRE_SIMIL]:
-      artists_genres_df = get_artists_genres(sp, songs_in_pls_df[Column.TRACK_ARTISTS].to_list())
+      artists_genres_df = get_artists_genres(sp, songs_in_pls_df[Column.TRACK_ARTISTS].to_list(), manipulate_genres=True)
       songs_in_pls_emb_df = _get_songs_genres_embeddings(songs_in_pls_df, artists_genres_df)
 
       songs_with_emb_simil_df = _get_genres_similarities(songs_in_pls_emb_df)
