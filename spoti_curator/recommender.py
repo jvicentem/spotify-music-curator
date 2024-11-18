@@ -233,6 +233,7 @@ def create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, songs_feats_df
         max_simil_range = max(pl[Config.SIMILITUDE_RANGE])   
 
         ref_simil_col = REF_SIMIL_COL_PREFIX(1)
+        ref_simil_col_orig = ref_simil_col
         if config[Config.USE_GENRE_SIMIL]:
             ref_simil_col += FIX_GENRE_SIMIL_SUFFIX
 
@@ -267,9 +268,15 @@ def create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, songs_feats_df
 
         if not ml_flag:
             if config[Config.USE_GENRE_SIMIL]:
-                filtered_df = pd.concat([filtered_df[filtered_df[Column.IS_GENRE_FIX]==1], 
+                filtered_df = (pd.concat([filtered_df[filtered_df[Column.IS_GENRE_FIX]==1], 
                                          filtered_df[filtered_df[Column.IS_GENRE_FIX]==0]
-                                         ]).reset_index(drop=True)
+                                         ])
+                                .reset_index(drop=True)
+                               )
+                                
+                aux_col = 'aux'
+                filtered_df[aux_col] = (filtered_df[Column.IS_GENRE_FIX] * filtered_df[ref_simil_col_orig]).round(2)
+                ref_simil_col = aux_col
 
             filtered_df = filtered_df.head(pl[Config.N_SONGS])
 
@@ -282,6 +289,9 @@ def create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, songs_feats_df
             hr_and_filtered_df[Column.PL_NAME] = pl_name
 
             hr_and_filtered_df = hr_and_filtered_df.drop_duplicates(subset=Column.TRACK_ID).sort_values(by=ref_simil_col, ascending=False)
+
+            if config[Config.USE_GENRE_SIMIL]: # delete aux column
+                del hr_and_filtered_df[ref_simil_col]
 
         else: # ML logic
             # concat predictions column
