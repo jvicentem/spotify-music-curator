@@ -32,6 +32,7 @@ origin_playlists:
     - "https://open.spotify.com/playlist/5NsZabBjLrejTFijmLwKV2?si=60762056b2004074" # spain wave
     - "https://open.spotify.com/playlist/37i9dQZF1DX3wF1YbAXxkA?si=2e0YBL46RRuu8zWa0qcLdQ" # fc25 pl
     - "https://open.spotify.com/playlist/0okFxg6e3F3oZSZGq8kwY0?si=fcfa22ba530a428d" # radar joven
+    - "https://open.spotify.com/playlist/6s4HdPQQMfyAkSC2wrotE3?si=d0411b2681b5474f" # primavera 2025
 faved_artists:
   min_songs_in_fav_pl: 3 # artists need to have at least this number of songs in fav pl to be considered (= 1 can create noise)
   fav_playlists_url: 
