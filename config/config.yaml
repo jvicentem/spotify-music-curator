@@ -10,7 +10,7 @@ result_playlists:
   worth_listening:
    order: 1
    name: "Fuzzy Stuff"
-   n_songs: 50
+   n_songs: 60
    similitude_range: [0.99, 0.5] # overlap on purpose, but this playlist MUST be placed always after best matches playlist. this way fuzzy will pick up songs with hi simil that were left out in best matches because of n songs limit
    artist_in_fav_pl_are_included: False
    use_ml: False    
@@ -33,6 +33,7 @@ origin_playlists:
     - "https://open.spotify.com/playlist/37i9dQZF1DX3wF1YbAXxkA?si=2e0YBL46RRuu8zWa0qcLdQ" # fc25 pl
     - "https://open.spotify.com/playlist/0okFxg6e3F3oZSZGq8kwY0?si=fcfa22ba530a428d" # radar joven
     - "https://open.spotify.com/playlist/6s4HdPQQMfyAkSC2wrotE3?si=d0411b2681b5474f" # primavera 2025
+    - "https://open.spotify.com/playlist/4BSj7IwrHLRpZeVNodMh5Z?si=830dece7523a46ad" # coachella 2025
 faved_artists:
   min_songs_in_fav_pl: 3 # artists need to have at least this number of songs in fav pl to be considered (= 1 can create noise)
   fav_playlists_url: 

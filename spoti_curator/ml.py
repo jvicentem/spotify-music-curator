@@ -14,56 +14,91 @@ from spoti_curator.utils import REF_SIMIL_COL_PREFIX_CONSTANT
 REF_PL_STRING = 'reference playlist'
 
 FEATURES_TO_USE = ['danceability', 'energy', 'key', 'loudness', 'mode', 'speechiness', 'acousticness', 'instrumentalness', 'liveness', 'valence', 'tempo']
-USE_DISTANCES_FEATS = False
+USE_DISTANCES_FEATS = True
 
-def create_ml_df(sp, config):
+REF_SONG_SIMIL_SUFFIX = 'REF_SONG_SIMIL'
+
+def create_ml_df(sp, config, simil_df=None):
     if os.path.isfile(DEBUG_DF_PATH):
         debug_df = pd.read_csv(DEBUG_DF_PATH, sep=';')  
 
         debug_df[Column.TRACK_ARTISTS] = debug_df[Column.TRACK_ARTISTS].apply(lambda x: eval(x) if str(x) != 'nan' else x)
 
-    # check what songs are in possitive class pl
+        debug_df = debug_df.fillna({Column.IS_REF_PL: 0})
 
-    # calculate positive - negative class
-    songs_in_pl_class_pl_df = get_songs_from_pl(sp, config[Config.POSSITIVE_CLASS_PL])
+        if simil_df is None:
+            from spoti_curator.recommender import _feature_similarity
 
-    positive_songs = songs_in_pl_class_pl_df[songs_in_pl_class_pl_df[Column.TRACK_ID].isin(debug_df[Column.TRACK_ID])][Column.TRACK_ID].values  
+            # simil_df[simil_df['track_id']=='4l9xe2rcwWctjrI43UFkgA']
 
-    # get distances and features (use past debug_df if possible)
-    feats_and_dists = debug_df.copy()
-    feats_and_dists[Column.LIKED_SONG] = (feats_and_dists[Column.TRACK_ID].isin(positive_songs) | (feats_and_dists[Column.IS_REF_PL] == 1)).astype(int)
+            aux_df = debug_df.copy()
+            aux_is_ref_hack = aux_df[aux_df[Column.IS_REF_PL]==1]
+            aux_is_ref_hack[Column.IS_REF_PL] = 0
 
-    feats_and_dists[Column.PL_NAME] = feats_and_dists[Column.PL_NAME].fillna(REF_PL_STRING)
+            aux_df = pd.concat([aux_df, aux_is_ref_hack])
 
-    feats_and_dists = feats_and_dists[
-        (
-            feats_and_dists[Column.PL_NAME]
-            .apply(lambda x: any(y in x for y in [config[Config.RESULT_PLS]['best_matches'][Config.PL_NAME], REF_PL_STRING]))
-        ) 
-        | 
-        (
-            (feats_and_dists[Column.PL_NAME] == config[Config.RESULT_PLS]['worth_listening'][Config.PL_NAME]) & 
-            (feats_and_dists[Column.LIKED_SONG] == 1)
-        )
-    ]
+            simil_df = _feature_similarity(aux_df[[Column.TRACK_ID, Column.TRACK_ARTISTS, Column.IS_REF_PL] + FEATURES_TO_USE])
+
+        # check what songs are in possitive class pl
+
+        # calculate positive - negative class
+        songs_in_pl_class_pl_df = get_songs_from_pl(sp, config[Config.POSSITIVE_CLASS_PL])
+
+        positive_songs = songs_in_pl_class_pl_df[songs_in_pl_class_pl_df[Column.TRACK_ID].isin(debug_df[Column.TRACK_ID])][Column.TRACK_ID].values  
+
+        # get distances and features (use past debug_df if possible)
+        feats_and_dists = debug_df.copy()
+        feats_and_dists[Column.LIKED_SONG] = (feats_and_dists[Column.TRACK_ID].isin(positive_songs) | (feats_and_dists[Column.IS_REF_PL] == 1)).astype(int)
+
+        feats_and_dists[Column.PL_NAME] = feats_and_dists[Column.PL_NAME].fillna(REF_PL_STRING)
+
+        feats_and_dists = feats_and_dists[
+            (
+                feats_and_dists[Column.PL_NAME]
+                .apply(lambda x: any(y in x for y in [config[Config.RESULT_PLS]['best_matches'][Config.PL_NAME], REF_PL_STRING]))
+            ) 
+            | 
+            (
+                (feats_and_dists[Column.PL_NAME] == config[Config.RESULT_PLS]['worth_listening'][Config.PL_NAME]) & 
+                (feats_and_dists[Column.LIKED_SONG] == 1)
+            )
+        ]
+
+        feats_and_dists = feats_and_dists.drop(columns=['1_ref', '2_ref', '3_ref', '4_ref', '5_ref', '6_ref', '7_ref', '8_ref', '9_ref', '10_ref', 
+                                                        '11_ref', '12_ref', '13_ref', '14_ref', '15_ref', '16_ref', '17_ref', '18_ref', '19_ref', '20_ref', 
+                                                        '21_ref', '22_ref', '23_ref', '24_ref', '25_ref', '26_ref', '27_ref', '28_ref', '29_ref', '30_ref', 
+                                                        '31_ref', '32_ref', '33_ref', '34_ref', '35_ref', '36_ref', '37_ref', '38_ref', '39_ref', 
+                                                        '1_simil_ref', '2_simil_ref', '3_simil_ref', '4_simil_ref', '5_simil_ref', '6_simil_ref', 
+                                                        '7_simil_ref', '8_simil_ref', '9_simil_ref', '10_simil_ref', '11_simil_ref', '12_simil_ref', 
+                                                        '13_simil_ref', '14_simil_ref', '15_simil_ref', '16_simil_ref', '17_simil_ref', '18_simil_ref', 
+                                                        '19_simil_ref', '20_simil_ref', '21_simil_ref', '22_simil_ref', '23_simil_ref', '24_simil_ref', 
+                                                        '25_simil_ref', '26_simil_ref', '27_simil_ref', '28_simil_ref', '29_simil_ref', '30_simil_ref', 
+                                                        '31_simil_ref', '32_simil_ref', '33_simil_ref', '34_simil_ref', '35_simil_ref', '36_simil_ref', 
+                                                        '37_simil_ref', '38_simil_ref', '39_simil_ref', 
+                                                        '1_ref_genre', '2_ref_genre', '3_ref_genre', '1_simil_ref_genre', '2_simil_ref_genre', '3_simil_ref_genre', 
+                                                        '1_ref_genre_fix', '1_simil_ref_genre_fix', Column.IS_GENRE_FIX, Column.TRACK_ARTISTS], errors='ignore')
+        
+        simil_df.columns = [f'{ix}_{REF_SONG_SIMIL_SUFFIX}' if c not in [Column.TRACK_ID, Column.TRACK_ARTISTS] else c for ix, c in enumerate(simil_df.columns) ]
+
+        feats_and_dists = pd.merge(feats_and_dists, simil_df, on=Column.TRACK_ID, how='left')
 
 
-    # as a first version, let's use ML on features or distances
-    #feats_and_dists['liked_song'].value_counts(normalize=True)
+        # as a first version, let's use ML on features or distances
+        #feats_and_dists['liked_song'].value_counts(normalize=True)
 
-    #feats_and_dists.shape
+        #feats_and_dists.shape
 
-    # save ml_df concatening it with prev ml_df   
+        # save ml_df concatening it with prev ml_df   
 
-    # for track_id, track_artists in feats_and_dists[[Column.TRACK_ID, Column.TRACK_ARTISTS]].items():
-    #     # get song or artist clip
-    #     #clip_file_name = get_song_clip(track_id, track_artists)
+        # for track_id, track_artists in feats_and_dists[[Column.TRACK_ID, Column.TRACK_ARTISTS]].items():
+        #     # get song or artist clip
+        #     #clip_file_name = get_song_clip(track_id, track_artists)
 
-    #     # calculate embeddings (read clip_file_name, get embeddings)        
+        #     # calculate embeddings (read clip_file_name, get embeddings)        
 
-    #     # calculate custom subgenre     
+        #     # calculate custom subgenre     
 
-    return feats_and_dists
+        return feats_and_dists
 
 def train_and_predict(train_df, to_pred_df):
     h2o.init()
@@ -76,13 +111,27 @@ def train_and_predict(train_df, to_pred_df):
     return predictions, cv_metric
 
 def _train_models(df, target_column, features, n_models=100, max_time_per_model=5*60):
+    simil_cols = []
+
     if USE_DISTANCES_FEATS:
         for c in df.columns:
-            if REF_SIMIL_COL_PREFIX_CONSTANT in c:
+            if REF_SONG_SIMIL_SUFFIX in c:
                 if c not in features:
+                    simil_cols.append(c)
                     features.append(c)
 
     # Convert the entire dataframe to an H2OFrame
+    print('Train df size: ', df[features + [target_column]].dropna().shape)
+    print('Target proportions: ', df[target_column].value_counts())
+
+    more_feats = []
+    max_simil = df[simil_cols].max(axis=1)
+    for c in simil_cols:
+        df[f'{c}_scaled'] = df[c] / max_simil
+        more_feats.append(f'{c}_scaled')
+
+    features = features + more_feats
+
     h2o_df = h2o.H2OFrame(df[features + [target_column]])
 
     # Identify the predictors and response
@@ -125,7 +174,7 @@ def _train_models(df, target_column, features, n_models=100, max_time_per_model=
     # For the moment, only one model is trained. Let's make things simple at the beginning...
 
     aml = H2OAutoML(max_runtime_secs=max_time_per_model,
-                    nfolds=2,
+                    nfolds=3,
                     balance_classes=False,
                     seed=16,
                     stopping_metric='AUCPR',
@@ -134,7 +183,14 @@ def _train_models(df, target_column, features, n_models=100, max_time_per_model=
     
     aml.train(x=predictors, y=response, training_frame=h2o_df)
 
-    cv_metric = aml.leader.metric('aucpr')[0][1]
+    bm = aml.get_best_model()
+
+    print('Precision: ', bm.precision())
+    print('Recall: ', bm.recall())
+
+    cv_metric = float(aml.leaderboard.as_data_frame().head(1)['aucpr'][0])
+
+    print(aml.get_leaderboard())
 
     return [], aml, cv_metric
 
@@ -187,6 +243,6 @@ if __name__ == '__main__':
     train_df = ml_df[ml_df[Column.PL_NAME] != last_non_ref_pl]
     to_pred_df = ml_df[ml_df[Column.PL_NAME] == last_non_ref_pl]
 
-    preds = train_and_predict(train_df, to_pred_df)
+    preds, metric = train_and_predict(train_df, to_pred_df)
 
     print(1)

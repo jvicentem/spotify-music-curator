@@ -235,7 +235,11 @@ def create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, songs_feats_df
         ref_simil_col = REF_SIMIL_COL_PREFIX(1)
         ref_simil_col_orig = ref_simil_col
         if config[Config.USE_GENRE_SIMIL]:
-            ref_simil_col += FIX_GENRE_SIMIL_SUFFIX
+            # ref_simil_col += FIX_GENRE_SIMIL_SUFFIX
+
+            aux_col = 'aux'
+            simil_new_df[aux_col] = (simil_new_df[Column.IS_GENRE_FIX] * simil_new_df[ref_simil_col_orig]).round(2)
+            ref_simil_col = aux_col            
 
         ## keep only those whose highest similitude is above threshold configured
         filtered_df = simil_new_df[(simil_new_df[ref_simil_col] > min_simil_range) 
@@ -272,11 +276,7 @@ def create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, songs_feats_df
                                          filtered_df[filtered_df[Column.IS_GENRE_FIX]==0]
                                          ])
                                 .reset_index(drop=True)
-                               )
-                                
-                aux_col = 'aux'
-                filtered_df[aux_col] = (filtered_df[Column.IS_GENRE_FIX] * filtered_df[ref_simil_col_orig]).round(2)
-                ref_simil_col = aux_col
+                               )                            
 
             filtered_df = filtered_df.head(pl[Config.N_SONGS])
 
