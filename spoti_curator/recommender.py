@@ -22,7 +22,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import torch
 
 from spoti_curator.constants import DEBUG_DF_PATH, FIX_GENRE_SIMIL_SUFFIX, Column, Config, get_config
-from spoti_curator.spoti_utils import create_playlist, get_prev_pls_songs, get_songs_from_pl, get_user_pls, get_artists_genres, login
+from spoti_curator.spoti_utils import create_playlist, get_prev_pls_songs, get_song_popularity, get_songs_from_pl, get_user_pls, get_artists_genres, login
 from spoti_curator.utils import REF_COL_PREFIX, REF_SIMIL_COL_PREFIX, transform_simil_df
 
 
@@ -64,8 +64,11 @@ def do_recommendation():
 
     songs_in_pls_df = pd.concat([songs_in_pls_df, songs_in_ref_pls_df], ignore_index=True)   
 
+    songs_popularity_df = get_song_popularity(sp, songs_in_pls_df[Column.TRACK_ID].values)
+
     # get artists genres embeddings
     artists_genres_df = get_artists_genres(sp, songs_in_pls_df[Column.TRACK_ARTISTS].to_list(), manipulate_genres=True)
+
     songs_in_pls_emb_df = _get_songs_genres_embeddings(songs_in_pls_df, artists_genres_df)
 
     songs_in_pls_no_emb_df = songs_in_pls_emb_df[songs_in_pls_emb_df[Column.GENRE_EMBEDDING].apply(lambda x: len(x) == 0)]
@@ -82,19 +85,35 @@ def do_recommendation():
     
     ## apply hard rules (keep songs from faved artists)
     simil_new_df, only_hard_rules_df, prev_pls_songs = _hard_rules(sp, simil_genres_new_df, fav_songs_df, config)    
+
+    simil_new_df = simil_new_df[simil_new_df[REF_SIMIL_COL_PREFIX(1) + '_genre'] > 0]
     
     simil_new_df[Column.IS_GENRE_FIX] = 1
 
     songs_in_pls_no_emb_df[Column.IS_GENRE_FIX] = 0
     songs_in_pls_no_emb_df[Column.IS_HARD_RULES] = 0
 
-    songs_in_pls_no_emb_df[Column.POPULARITY] = songs_in_pls_no_emb_df[Column.TRACK_ARTISTS].apply(lambda x: artists_genres_df[artists_genres_df['artist'].isin(x)][Column.POPULARITY].max()  
-                                                                                                   )
+    songs_in_pls_no_emb_df[Column.POPULARITY_ARTIST] = songs_in_pls_no_emb_df[Column.TRACK_ARTISTS].apply(lambda x: artists_genres_df[artists_genres_df['artist'].isin(x)][Column.POPULARITY_ARTIST].max())
 
-    songs_in_pls_no_emb_df = songs_in_pls_no_emb_df.sort_values(by=Column.POPULARITY, ascending=False)
+    songs_in_pls_no_emb_df = songs_in_pls_no_emb_df.sort_values(by=Column.POPULARITY_ARTIST, ascending=False) 
+    
+    songs_in_pls_no_emb_df = pd.merge(songs_in_pls_no_emb_df, songs_popularity_df, on=Column.TRACK_ID, how='left')    
+    songs_in_pls_no_emb_df['artists_str'] = songs_in_pls_no_emb_df[Column.TRACK_ARTISTS].apply(lambda x: ':'.join(sorted(x)))
+    songs_in_pls_no_emb_df = (songs_in_pls_no_emb_df.loc[songs_in_pls_no_emb_df.groupby('artists_str')[Column.POPULARITY_SONG].idxmax()]
+                                .drop_duplicates(subset='artists_str')
+                                .drop(columns=['artists_str'])
+                                )         
+    
+    simil_new_df = pd.merge(simil_new_df, songs_popularity_df, on=Column.TRACK_ID, how='left')    
+    simil_new_df['artists_str'] = simil_new_df[Column.TRACK_ARTISTS].apply(lambda x: ':'.join(sorted(x)))
+    simil_new_df = (simil_new_df.loc[simil_new_df.groupby('artists_str')[Column.POPULARITY_SONG].idxmax()]
+                                .drop_duplicates(subset='artists_str')
+                                .drop(columns=['artists_str'])
+                                )         
+    simil_new_df[Column.POPULARITY_ARTIST] = simil_new_df[Column.TRACK_ARTISTS].apply(lambda x: artists_genres_df[artists_genres_df['artist'].isin(x)][Column.POPULARITY_ARTIST].max())
 
-    simil_new_df = pd.merge(simil_new_df, songs_in_pls_no_emb_df[[Column.TRACK_ID, Column.IS_GENRE_FIX, Column.IS_HARD_RULES, Column.POPULARITY]], 
-                            on=[Column.TRACK_ID, Column.IS_GENRE_FIX, Column.IS_HARD_RULES], how='outer')
+    simil_new_df = pd.merge(simil_new_df, songs_in_pls_no_emb_df[[Column.TRACK_ID, Column.IS_GENRE_FIX, Column.IS_HARD_RULES, Column.POPULARITY_ARTIST, Column.POPULARITY_SONG]], 
+                            on=[Column.TRACK_ID, Column.IS_GENRE_FIX, Column.IS_HARD_RULES, Column.POPULARITY_SONG, Column.POPULARITY_ARTIST], how='outer')
 
     debug_df = create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, simil_genres_new_df)
 
@@ -211,7 +230,7 @@ def create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, songs_simil_df
                                               (simil_new_df[Column.IS_GENRE_FIX]==0)
                                               ]
 
-        no_simil_nor_fixed_df = no_simil_nor_fixed_df.sort_values(by=[ref_simil_col, Column.POPULARITY], ascending=[False, False])
+        no_simil_nor_fixed_df = no_simil_nor_fixed_df.sort_values(by=[ref_simil_col, Column.POPULARITY_ARTIST], ascending=[False, False])
 
         filtered_df = pd.concat([filtered_df, no_simil_nor_fixed_df])        
 
@@ -238,7 +257,7 @@ def create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, songs_simil_df
                                         filtered_df[filtered_df[Column.IS_GENRE_FIX]==0]
                                         ])
                             .reset_index(drop=True)
-                            )                            
+                            )                                      
 
             filtered_df = filtered_df.head(pl[Config.N_SONGS])
 

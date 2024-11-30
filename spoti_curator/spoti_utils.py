@@ -126,7 +126,7 @@ def get_artists_genres(sp, artists_list, manipulate_genres=False):
         else:
             genres.append(', '.join(t['genres']))
 
-    artists_genres_df = pd.DataFrame({'artist': artist_ids, Column.GENRES: genres, Column.POPULARITY: popularity})
+    artists_genres_df = pd.DataFrame({'artist': artist_ids, Column.GENRES: genres, Column.POPULARITY_ARTIST: popularity})
 
     if manipulate_genres:        
         artists_genres_df.loc[artists_genres_df['artist'] == '54R6Y0I7jGUCveDTtI21nb', Column.GENRES] = 'funk, disco, reggae, r&b'
@@ -134,5 +134,19 @@ def get_artists_genres(sp, artists_list, manipulate_genres=False):
 
     return artists_genres_df
 
-def get_song_clip():
-    pass
+def get_song_popularity(sp, tracks_list):
+    unique_tracks = list(set(tracks_list))
+
+    # Process in batches
+
+    track_ids = []
+    popularities = []
+    for i in range(0, len(unique_tracks), 50):
+        batch = unique_tracks[i:i+50]
+
+        ref_tracks_info_aux = sp.tracks(batch)
+
+        track_ids += batch
+        popularities += [x['popularity'] if 'popularity' in x else 0.0 for x in ref_tracks_info_aux['tracks']]
+    
+    return pd.DataFrame({Column.TRACK_ID: track_ids, Column.POPULARITY_SONG: popularities})
