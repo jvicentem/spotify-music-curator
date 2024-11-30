@@ -4,14 +4,14 @@ result_playlists:
     order: 0
     name: "Best Matches"
     n_songs: 50
-    similitude_range: [1.0, 0.90]
+    similitude_range: [1.0, 0.70]
     artist_in_fav_pl_are_included: True
     use_ml: False
   worth_listening:
    order: 1
    name: "Fuzzy Stuff"
    n_songs: 60
-   similitude_range: [0.99, 0.5] # overlap on purpose, but this playlist MUST be placed always after best matches playlist. this way fuzzy will pick up songs with hi simil that were left out in best matches because of n songs limit
+   similitude_range: [0.7, 0.35] # overlap on purpose, but this playlist MUST be placed always after best matches playlist. this way fuzzy will pick up songs with hi simil that were left out in best matches because of n songs limit
    artist_in_fav_pl_are_included: False
    use_ml: False    
 origin_playlists:
@@ -43,4 +43,3 @@ positive_class_pl: "https://open.spotify.com/playlist/7zbRh4zP0SVtviSYoqn9DM?si=
 user: "1199533427"
 max_simil_comparisons: -1 # -1 = all reference songs are kept
 ml_metric_thresh: 0.80 # metric = aucpr
-use_genre_simil: True

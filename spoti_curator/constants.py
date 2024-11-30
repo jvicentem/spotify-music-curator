@@ -35,6 +35,8 @@ class Column:
     GENRE_EMBEDDING = 'genre_embedding'
     IS_GENRE_FIX = 'is_genre_fix'
 
+    POPULARITY = 'popularity'
+
 class Config:
     ORIGIN_PLS = 'origin_playlists'
     PLS_TO_CURATE = 'playlists_to_curate'
