@@ -23,18 +23,18 @@ origin_playlists:
     - "https://open.spotify.com/playlist/5FJ5R13o9A1l018qE0vI88?si=3c139f246c8340d3" # capitan demo
     - "https://open.spotify.com/playlist/5NsZabBjLrejTFijmLwKV2?si=ed983c97348b48cb" # spain new wave
     - "https://open.spotify.com/playlist/3Di88mvYplBtkDBIzGLiiM?si=6d4529e2d42846a1" # edm hits
-    - "https://open.spotify.com/playlist/37i9dQZF1DX8gDIpdqp1XJ?si=ff83b08823ba4187" # modern psychedelia
     - "https://open.spotify.com/playlist/5OVTqQiUOuQoGhpC24sZWd?si=6fa97b7f934f43dc" # fresh finds indie
     - "https://open.spotify.com/playlist/5bs8K6Gr5T0Q0HzrAlkknp?si=914bf6707e8449d9" # fresh finds indie 2
-    - "https://open.spotify.com/playlist/7o7VRqaybWht694rUuMsuW?si=95a7ee16d37b4d50" # fresh finds dance
     - "https://open.spotify.com/playlist/2QYyqeT1JZtGzdKy5tCSc8?si=1f8ddb42934b4d60" # fresh finds rock    
-    - "https://open.spotify.com/playlist/3W5wa32sNQR0voyAJZRiSJ?si=f14e2aad0edb4e37" # fresh finds rock 2       
+    - "https://open.spotify.com/playlist/3W5wa32sNQR0voyAJZRiSJ?si=f14e2aad0edb4e37" # fresh finds rock 2      
+    - "https://open.spotify.com/playlist/4EhjPLkcbWraBhx48IYRt1?si=CxbklQaoScG6Rj8GIb16cw" # more rock 
     - "https://open.spotify.com/playlist/22XHJsFcjUYZi84RzkMPr2?si=4c7e7c09ec564215" # popurri de la semana
     - "https://open.spotify.com/playlist/5NsZabBjLrejTFijmLwKV2?si=60762056b2004074" # spain wave
     - "https://open.spotify.com/playlist/4y4RsISHK5TvJThOSKPnBI?si=702f8bc53a5e4161" # fc25 pl
     - "https://open.spotify.com/playlist/0okFxg6e3F3oZSZGq8kwY0?si=fcfa22ba530a428d" # radar joven
     - "https://open.spotify.com/playlist/6s4HdPQQMfyAkSC2wrotE3?si=d0411b2681b5474f" # primavera 2025
     - "https://open.spotify.com/playlist/4BSj7IwrHLRpZeVNodMh5Z?si=830dece7523a46ad" # coachella 2025
+    - "https://open.spotify.com/playlist/2fpdDT9vWkeA8TiGUFrWXE?si=_61hwUSTR4KP6mCbqQxOvw" # psychedelia
 faved_artists:
   min_songs_in_fav_pl: 3 # artists need to have at least this number of songs in fav pl to be considered (= 1 can create noise)
   fav_playlists_url: 
