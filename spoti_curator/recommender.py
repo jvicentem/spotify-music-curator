@@ -22,8 +22,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 import torch
 
 from spoti_curator.constants import DEBUG_DF_PATH, FIX_GENRE_SIMIL_SUFFIX, Column, Config, get_config
-from spoti_curator.spoti_utils import create_playlist, get_prev_pls_songs, get_song_popularity, get_songs_from_pl, get_user_pls, get_artists_genres, login
-from spoti_curator.utils import REF_COL_PREFIX, REF_SIMIL_COL_PREFIX, transform_simil_df
+from spoti_curator.spoti_utils import create_playlist, get_prev_pls_songs, get_song_popularity, get_songs_from_pl, get_artists_genres, login
+from spoti_curator.utils import REF_SIMIL_COL_PREFIX, transform_simil_df
 
 
 

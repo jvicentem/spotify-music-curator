@@ -50,13 +50,16 @@ def get_songs_from_pl(sp, pl_url):
             if item['track'] is not None:
                 track = item['track']
 
-                track_row = {Column.TRACK_ID: track['id'],
-                            Column.TRACK_NAME: track['name'],
-                            Column.TRACK_ARTISTS: [i['id'] for i in track['artists']],
-                            Column.PL_URL: pl_url
-                            }
-                
-                tracks.append(track_row)      
+                artists_list = [i['id'] for i in track['artists'] if i['id'] is not None ]
+
+                if len(artists_list) > 0:
+                    track_row = {Column.TRACK_ID: track['id'],
+                                Column.TRACK_NAME: track['name'],
+                                Column.TRACK_ARTISTS: artists_list,
+                                Column.PL_URL: pl_url
+                                }
+                    
+                    tracks.append(track_row)      
 
         while pl_tracks['next']:
             pl_tracks = sp.next(pl_tracks)
@@ -65,13 +68,16 @@ def get_songs_from_pl(sp, pl_url):
                 if item['track'] is not None:
                     track = item['track']
 
-                    track_row = {Column.TRACK_ID: track['id'],
-                                Column.TRACK_NAME: track['name'],
-                                Column.TRACK_ARTISTS: [i['id'] for i in track['artists']],
-                                Column.PL_URL: pl_url
-                                }
-                    
-                    tracks.append(track_row)                   
+                    artists_list = [i['id'] for i in track['artists'] if i['id'] is not None ]
+
+                    if len(artists_list) > 0:
+                        track_row = {Column.TRACK_ID: track['id'],
+                                    Column.TRACK_NAME: track['name'],
+                                    Column.TRACK_ARTISTS: artists_list,
+                                    Column.PL_URL: pl_url
+                                    }
+                        
+                        tracks.append(track_row)                   
             
         return pd.DataFrame(tracks)
     except:
@@ -98,7 +104,7 @@ def get_prev_pls_songs(sp, config):
     return pd.concat(prev_pls_songs, ignore_index=True)    
 
 def get_artists_genres(sp, artists_list, manipulate_genres=False):
-    unique_artists = list(set([artists[0] for artists in artists_list]))
+    unique_artists = [x for x in list(set([artists[0] for artists in artists_list])) if x is not None]
 
     # Process in batches of 100
 
@@ -116,15 +122,16 @@ def get_artists_genres(sp, artists_list, manipulate_genres=False):
     popularity = []
 
     for t in ref_artists_info_aux['artists']:
-        artist_ids.append(t['id'])
-        popularity.append(t['popularity'])
+        if t is not None:
+            artist_ids.append(t['id'])
+            popularity.append(t['popularity'])
 
-        if manipulate_genres:
-            genres_manipulated = [gg.replace('pop', '') for gg in t['genres'] if gg.replace('pop', '') != '']
+            if manipulate_genres:
+                genres_manipulated = [gg.replace('pop', '') for gg in t['genres'] if gg.replace('pop', '') != '']
 
-            genres.append(', '.join(list(set(genres_manipulated))))
-        else:
-            genres.append(', '.join(t['genres']))
+                genres.append(', '.join(list(set(genres_manipulated))))
+            else:
+                genres.append(', '.join(t['genres']))
 
     artists_genres_df = pd.DataFrame({'artist': artist_ids, Column.GENRES: genres, Column.POPULARITY_ARTIST: popularity})
 
@@ -135,7 +142,7 @@ def get_artists_genres(sp, artists_list, manipulate_genres=False):
     return artists_genres_df
 
 def get_song_popularity(sp, tracks_list):
-    unique_tracks = list(set(tracks_list))
+    unique_tracks = [x for x in list(set(tracks_list)) if x is not None]
 
     # Process in batches
 
@@ -147,6 +154,6 @@ def get_song_popularity(sp, tracks_list):
         ref_tracks_info_aux = sp.tracks(batch)
 
         track_ids += batch
-        popularities += [x['popularity'] if 'popularity' in x else 0.0 for x in ref_tracks_info_aux['tracks']]
+        popularities += [x['popularity'] if x is not None and 'popularity' in x else 0.0 for x in ref_tracks_info_aux['tracks']]
     
     return pd.DataFrame({Column.TRACK_ID: track_ids, Column.POPULARITY_SONG: popularities})
