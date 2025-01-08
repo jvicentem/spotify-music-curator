@@ -48,3 +48,23 @@ deeplearning prediction progress: |/Users/jose/miniconda3/envs/spoti_curator/lib
 ██████████████████████████████████████████████| (done) 100%
 H2O session _sid_95c6 closed.
 Password:Password:Password:Sleeping now...
+Password:Password:Sleeping now...
+Password:Password:Sleeping now...
+/Users/jose/spotify-music-curator/spoti_curator/recommender.py:93: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  songs_in_pls_no_emb_df[Column.IS_GENRE_FIX] = 0
+/Users/jose/spotify-music-curator/spoti_curator/recommender.py:94: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  songs_in_pls_no_emb_df[Column.IS_HARD_RULES] = 0
+/Users/jose/spotify-music-curator/spoti_curator/recommender.py:96: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  songs_in_pls_no_emb_df[Column.POPULARITY_ARTIST] = songs_in_pls_no_emb_df[Column.TRACK_ARTISTS].apply(lambda x: artists_genres_df[artists_genres_df['artist'].isin(x)][Column.POPULARITY_ARTIST].max())

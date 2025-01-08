@@ -90,6 +90,8 @@ def do_recommendation():
     
     simil_new_df[Column.IS_GENRE_FIX] = 1
 
+    songs_in_pls_no_emb_df = songs_in_pls_no_emb_df[~songs_in_pls_no_emb_df[Column.TRACK_ID].isin(prev_pls_songs[Column.TRACK_ID])]
+
     songs_in_pls_no_emb_df[Column.IS_GENRE_FIX] = 0
     songs_in_pls_no_emb_df[Column.IS_HARD_RULES] = 0
 
