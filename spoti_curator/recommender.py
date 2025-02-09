@@ -242,6 +242,8 @@ def create_reco_pls(sp, cand_songs_sorted_df, must_include_df, config):
         if pl[Config.INCLUDE_FAV_ARTISTS]:
             new_reco_pl_songs_df = pd.concat([new_reco_pl_songs_df, must_include_df])
 
+        new_reco_pl_songs_df = new_reco_pl_songs_df.drop_duplicates(subset=[Column.TRACK_ID])
+
         pls_dfs.append(new_reco_pl_songs_df)
 
         ## if nothing gets selected, pass
