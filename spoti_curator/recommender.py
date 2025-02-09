@@ -178,7 +178,7 @@ Do not return any other text, just and only the Python list with the requested c
     ### if several artists are mapped to a genre string (tie), recommend the song with highest popularity. If still ties, 
     ### use artist popularity. If still ties, pick one random.
 
-    genres_reco_list_aux = [cand_genres_dict[i] for i in reco_list]
+    genres_reco_list_aux = [cand_genres_dict[i] for i in reco_list if i < len(cand_genres_dict.keys())]
 
     artists_reco_list_aux = [cand_genres_artists_map[gr] for gr in genres_reco_list_aux]
     artists_reco_list_aux = list(itertools.chain(*artists_reco_list_aux))
