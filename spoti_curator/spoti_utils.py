@@ -126,12 +126,12 @@ def get_artists_genres(sp, artists_list, manipulate_genres=False):
             artist_ids.append(t['id'])
             popularity.append(t['popularity'])
 
-            if manipulate_genres:
-                genres_manipulated = [gg.replace('pop', '') for gg in t['genres'] if gg.replace('pop', '') != '']
+            # if manipulate_genres:
+            #     genres_manipulated = [gg.replace('pop', '') for gg in t['genres'] if gg.replace('pop', '') != '' and gg != 'k-pop']
 
-                genres.append(', '.join(list(set(genres_manipulated))))
-            else:
-                genres.append(', '.join(t['genres']))
+            #     genres.append(', '.join(list(set(genres_manipulated))))
+            # else:
+            genres.append(', '.join(list(set(t['genres']))))
 
     artists_genres_df = pd.DataFrame({'artist': artist_ids, Column.GENRES: genres, Column.POPULARITY_ARTIST: popularity})
 

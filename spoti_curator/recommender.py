@@ -1,9 +1,11 @@
 from datetime import datetime
+import itertools
 import os
 import logging
 
 import numpy as np
-
+import pandas as pd
+from openai import OpenAI
 
 from spoti_curator.embeddings import GenreAnalyzer
 from spoti_curator.ml import create_ml_df, train_and_predict, FEATURES_TO_USE
@@ -17,15 +19,39 @@ logger = logging.getLogger()
 
 today = datetime.today().strftime('%Y/%m/%d')
 
-import pandas as pd
-from sklearn.metrics.pairwise import cosine_similarity
-import torch
-
-from spoti_curator.constants import DEBUG_DF_PATH, FIX_GENRE_SIMIL_SUFFIX, Column, Config, get_config
+from spoti_curator.constants import FIX_GENRE_SIMIL_SUFFIX, Column, Config, get_config
 from spoti_curator.spoti_utils import create_playlist, get_prev_pls_songs, get_song_popularity, get_songs_from_pl, get_artists_genres, login
-from spoti_curator.utils import REF_SIMIL_COL_PREFIX, transform_simil_df
 
 
+def get_chatgpt_response(prompt: str, model: str = "gpt-4o-mini") -> str:
+    """
+    Sends a prompt to ChatGPT and retrieves the response.
+    
+    Args:
+        prompt (str): The input prompt for ChatGPT.
+        model (str): The language model to use (default is "gpt-4").
+
+    Returns:
+        str: The response from ChatGPT.
+    """
+    try:
+        client = OpenAI(
+            api_key=os.environ.get("OPENAI_API_KEY"),  # This is the default and can be omitted
+        )
+
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+            model=model,
+        )
+
+        return chat_completion.choices[0].message.content
+    except Exception as e:
+        return f"Error: {e}"
 
 
 def do_recommendation():
@@ -64,297 +90,122 @@ def do_recommendation():
 
     songs_in_pls_df = pd.concat([songs_in_pls_df, songs_in_ref_pls_df], ignore_index=True)   
 
-    songs_popularity_df = get_song_popularity(sp, songs_in_pls_df[Column.TRACK_ID].values)
+    # get prev songs
+    prev_pls_songs = get_prev_pls_songs(sp, config)
 
-    # get artists genres embeddings
-    artists_genres_df = get_artists_genres(sp, songs_in_pls_df[Column.TRACK_ARTISTS].to_list(), manipulate_genres=True)
+    # create prompt
 
-    songs_in_pls_emb_df = _get_songs_genres_embeddings(songs_in_pls_df, artists_genres_df)
+    ## get genres for candidate songs and ref songs
+    artists_genres_df = get_artists_genres(sp, songs_in_pls_df[Column.TRACK_ARTISTS].to_list(), manipulate_genres=True) 
 
-    songs_in_pls_no_emb_df = songs_in_pls_emb_df[songs_in_pls_emb_df[Column.GENRE_EMBEDDING].apply(lambda x: len(x) == 0)]
-
-    songs_in_pls_emb_df = songs_in_pls_emb_df[songs_in_pls_emb_df[Column.GENRE_EMBEDDING].apply(lambda x: len(x) > 0)]
-
-    songs_with_emb_simil_df = _get_genres_similarities(songs_in_pls_emb_df)
-
-    simil_genres_new_df = transform_simil_df(songs_with_emb_simil_df, config[Config.MAX_COMPARISONS])
-    simil_genres_new_df.columns = [c if '_ref' not in c else c + '_genre' for c in simil_genres_new_df.columns]
-
+    ## remove all songs that appear in previous pls or like or outliers pls
     fav_songs_df = pd.concat([get_songs_from_pl(sp, pl_url) 
                               for pl_url in config[Config.FAVED_ARTISTS_SECTION][Config.FAV_PLAYLISTS_URL]], ignore_index=True)
+
+    fav_songs_ids = fav_songs_df[Column.TRACK_ID].tolist()
+    songs_in_ref_pls_ids = songs_in_ref_pls_df[Column.TRACK_ID].tolist()
+    prev_added_songs_ids = prev_pls_songs[Column.TRACK_ID].tolist()
+    cand_songs_in_pls_df = songs_in_pls_df[~ songs_in_pls_df[Column.TRACK_ID].isin(fav_songs_ids + songs_in_ref_pls_ids + prev_added_songs_ids)]
+    cand_songs_in_pls_df = cand_songs_in_pls_df.drop_duplicates(subset=[Column.TRACK_ID])
+
+    ## if a song has two artists, concatenate their genres
+    ## songs without genre won't be suggested (removed here)
+    song_genres_df = songs_in_pls_df.copy()
+
+    def _concat_genres(artists_list):
+        concated_genres = []
+
+        for artist in artists_list:
+            aux_df = artists_genres_df[artists_genres_df['artist'] == artist]
+
+            if aux_df.shape[0] > 0:
+                if aux_df[Column.GENRES].values[0] != '':
+                    concated_genres += aux_df[Column.GENRES].values[0].split(',')
+
+        return ','.join(concated_genres)
+
+    song_genres_df[Column.GENRES_CONCAT] = songs_in_pls_df[Column.TRACK_ARTISTS].apply(lambda x: _concat_genres(x))
+    song_genres_df = song_genres_df[song_genres_df[Column.GENRES_CONCAT] != '']
     
-    ## apply hard rules (keep songs from faved artists)
-    simil_new_df, only_hard_rules_df, prev_pls_songs = _hard_rules(sp, simil_genres_new_df, fav_songs_df, config)    
+    ## from all the songs create a set of genres. 
+    ref_songs_genres_df = song_genres_df[song_genres_df[Column.IS_REF_PL] == 1].copy()
+    cand_songs_genres_df = song_genres_df[(song_genres_df[Column.IS_REF_PL] == 0) & 
+                                          ( ~ song_genres_df[Column.TRACK_ID].isin(fav_songs_ids + songs_in_ref_pls_ids + prev_added_songs_ids) )
+                                          ].copy()
+    cand_songs_genres_df['artists_str'] = cand_songs_genres_df[Column.TRACK_ARTISTS].apply(lambda x: ','.join(sorted(x)))
 
-    simil_new_df = simil_new_df[simil_new_df[REF_SIMIL_COL_PREFIX(1) + '_genre'] > 0]
+    cand_songs_genres_unique_df = cand_songs_genres_df[['artists_str', Column.GENRES_CONCAT]].drop_duplicates().reset_index(drop=True)
+
+    ref_songs_genres_list = ref_songs_genres_df[Column.GENRES_CONCAT].unique().tolist()
+
+    ## The prompt will be something like "These are the genres of artists he likes (each list of genres defines one artist): 
+    #   [rock, pop, indie], [dance, house, electro]"
+
+    ## create the prompt, make it return a list with artists indices sorted by similarity to the ref songs 
+
+    cand_genres_artists_map = {}
+
+    for gs in cand_songs_genres_unique_df[Column.GENRES_CONCAT].unique():
+        aux_art_list_df = cand_songs_genres_unique_df[cand_songs_genres_unique_df[Column.GENRES_CONCAT] == gs]['artists_str'].unique().tolist()
+        cand_genres_artists_map[gs] = aux_art_list_df
+
+    cand_genres_dict = { i: k for i, k in enumerate(cand_genres_artists_map.keys()) }
+
+    cand_genres_str = "".join([f"{i}. {k} \n" for i, k in cand_genres_dict.items() ])
+
+    prompt = f'''
+It's your task to recommend artists based on their genre. A list of reference artists and their genres is provided and later a list of candidate artists is provided.
+
+Here are the reference artists. Each list represents the genres of each reference artist:
+
+{", ".join( ["[" + x + "]" for x in ref_songs_genres_list] )}
+
+These are the candidate artists. Only their genres are presented with an index on the left.
+
+{ cand_genres_str }
+
+Please, do the following now: First, sort the candidate artists from most probable to be liked by the user to least. Then, place their indices in a Python list. 
+Make sure you include all the {len(cand_genres_dict.keys())} candidate artists indices in the resulting list. 
+Do not return any other text, just and only the Python list with the requested content.
+'''
     
-    simil_new_df[Column.IS_GENRE_FIX] = 1
+    ## send prompt, receive it and process it.
+    response = get_chatgpt_response(prompt, model="o1-preview")
 
-    songs_in_pls_no_emb_df = songs_in_pls_no_emb_df[~songs_in_pls_no_emb_df[Column.TRACK_ID].isin(prev_pls_songs[Column.TRACK_ID])]
+    reco_list = eval(response.strip('```').strip('python').strip('\n'))
 
-    songs_in_pls_no_emb_df[Column.IS_GENRE_FIX] = 0
-    songs_in_pls_no_emb_df[Column.IS_HARD_RULES] = 0
+    ## convert reco_list to song recos 
+    ### if several artists are mapped to a genre string (tie), recommend the song with highest popularity. If still ties, 
+    ### use artist popularity. If still ties, pick one random.
 
-    songs_in_pls_no_emb_df[Column.POPULARITY_ARTIST] = songs_in_pls_no_emb_df[Column.TRACK_ARTISTS].apply(lambda x: artists_genres_df[artists_genres_df['artist'].isin(x)][Column.POPULARITY_ARTIST].max())
+    genres_reco_list_aux = [cand_genres_dict[i] for i in reco_list]
 
-    songs_in_pls_no_emb_df = songs_in_pls_no_emb_df.sort_values(by=Column.POPULARITY_ARTIST, ascending=False) 
-    
-    songs_in_pls_no_emb_df = pd.merge(songs_in_pls_no_emb_df, songs_popularity_df, on=Column.TRACK_ID, how='left')    
-    songs_in_pls_no_emb_df['artists_str'] = songs_in_pls_no_emb_df[Column.TRACK_ARTISTS].apply(lambda x: ':'.join(sorted(x)))
-    songs_in_pls_no_emb_df = (songs_in_pls_no_emb_df.loc[songs_in_pls_no_emb_df.groupby('artists_str')[Column.POPULARITY_SONG].idxmax()]
-                                .drop_duplicates(subset='artists_str')
-                                .drop(columns=['artists_str'])
-                                )         
-    
-    simil_new_df = pd.merge(simil_new_df, songs_popularity_df, on=Column.TRACK_ID, how='left')    
-    simil_new_df['artists_str'] = simil_new_df[Column.TRACK_ARTISTS].apply(lambda x: ':'.join(sorted(x)))
-    simil_new_df = (simil_new_df.loc[simil_new_df.groupby('artists_str')[Column.POPULARITY_SONG].idxmax()]
-                                .drop_duplicates(subset='artists_str')
-                                .drop(columns=['artists_str'])
-                                )         
-    simil_new_df[Column.POPULARITY_ARTIST] = simil_new_df[Column.TRACK_ARTISTS].apply(lambda x: artists_genres_df[artists_genres_df['artist'].isin(x)][Column.POPULARITY_ARTIST].max())
+    artists_reco_list_aux = [cand_genres_artists_map[gr] for gr in genres_reco_list_aux]
+    artists_reco_list_aux = list(itertools.chain(*artists_reco_list_aux))
 
-    simil_new_df = pd.merge(simil_new_df, songs_in_pls_no_emb_df[[Column.TRACK_ID, Column.IS_GENRE_FIX, Column.IS_HARD_RULES, Column.POPULARITY_ARTIST, Column.POPULARITY_SONG]], 
-                            on=[Column.TRACK_ID, Column.IS_GENRE_FIX, Column.IS_HARD_RULES, Column.POPULARITY_SONG, Column.POPULARITY_ARTIST], how='outer')
-
-    debug_df = create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, simil_genres_new_df)
-
-    _save_debug_df(debug_df)
-
-def _get_genres_similarities(songs_in_pls_emb_df: pd.DataFrame):
-    ref_df = songs_in_pls_emb_df[songs_in_pls_emb_df[Column.IS_REF_PL] == 1]
-    ref_track_ids = ref_df[Column.TRACK_ID].values
-
-    non_ref_songs = songs_in_pls_emb_df[songs_in_pls_emb_df[Column.IS_REF_PL] == 0].reset_index(drop=True)
-
-    ref_songs_embeddings_vals = ref_df[Column.GENRE_EMBEDDING].values
-    non_ref_songs_with_embeddings_vals = non_ref_songs[non_ref_songs[Column.GENRE_EMBEDDING].apply(lambda x: len(x) > 0)][Column.GENRE_EMBEDDING].values
-
-    # Convert array of arrays to 2D array
-    ref_songs_2d = np.stack(ref_songs_embeddings_vals)
-    non_ref_songs_2d = np.stack(non_ref_songs_with_embeddings_vals)
-
-    # Now calculate similarity
-    cosine_similarity_result = cosine_similarity(non_ref_songs_2d, ref_songs_2d)
-
-    cosine_similarity_df = pd.DataFrame(cosine_similarity_result)
-
-    cosine_similarity_df.columns = ref_track_ids
-    cosine_similarity_df[Column.TRACK_ID] = non_ref_songs[Column.TRACK_ID]
-    cosine_similarity_df[Column.TRACK_ARTISTS] = non_ref_songs[Column.TRACK_ARTISTS]
-
-    return cosine_similarity_df       
-
-def _get_songs_genres_embeddings(songs_in_pls_df: pd.DataFrame, artists_genres_df: pd.DataFrame):
-    # Initialize the analyzer
-    analyzer = GenreAnalyzer(device="cuda" if torch.cuda.is_available() else "cpu",
-                             model_name='sentence-transformers/all-MiniLM-L6-v2')
-
-    # Process multiple texts
-    artists_with_genres_df = artists_genres_df[artists_genres_df[Column.GENRES] != ''].copy()
-
-    texts = ['Music genres that define a music band: ' + g for g in artists_with_genres_df[Column.GENRES]]
-    embeddings = analyzer.get_embedding(texts)
-
-    artists_with_genres_df[Column.GENRE_EMBEDDING] = embeddings.tolist()
-
-    artists_genres_dict = {k: embeddings[i] for i, k in enumerate(artists_with_genres_df['artist'])}
-
-    songs_in_pls_df[Column.GENRE_EMBEDDING] = songs_in_pls_df[Column.TRACK_ARTISTS].apply(lambda x: artists_genres_dict.get(x[0], []))
-
-    return songs_in_pls_df
-    """
-    Output shape: reference track ids on column names. non-reference track ids in TRACK_ID column.
-    Each value is the cosine similarity between each non-ref song and each ref-song
-    """
-    ref_df = songs_feats_df[songs_feats_df[Column.IS_REF_PL] == 1]
-    ref_track_ids = ref_df[Column.TRACK_ID].values
-    non_ref_track_ids = songs_feats_df[songs_feats_df[Column.IS_REF_PL] == 0][Column.TRACK_ID].values
-
-    non_ref_artists = songs_feats_df[songs_feats_df[Column.IS_REF_PL] == 0][Column.TRACK_ARTISTS].values
-
-    songs_feats_df_aux = songs_feats_df.copy().drop(columns=['mode', 'key', Column.TRACK_ID])
-
-    for c in songs_feats_df_aux.columns:
-        if c not in [Column.IS_REF_PL, Column.TRACK_ARTISTS]:
-            songs_feats_df_aux[c] = ((songs_feats_df_aux[c] - ref_df[c].min()) 
-                                    /  
-                                    max(ref_df[c].max() - ref_df[c].min(), 0.00001)
-                                    )
-            
-    ref_songs = songs_feats_df_aux[songs_feats_df[Column.IS_REF_PL] == 1].drop(columns=[Column.IS_REF_PL, Column.TRACK_ARTISTS])
-    non_ref_songs = songs_feats_df_aux[songs_feats_df[Column.IS_REF_PL] == 0].drop(columns=[Column.IS_REF_PL, Column.TRACK_ARTISTS])
-            
-    cosine_similarity_result = cosine_similarity(non_ref_songs, ref_songs)
-
-    cosine_similarity_df = pd.DataFrame(cosine_similarity_result)
-
-    cosine_similarity_df.columns = ref_track_ids
-    cosine_similarity_df[Column.TRACK_ID] = non_ref_track_ids
-    cosine_similarity_df[Column.TRACK_ARTISTS] = non_ref_artists
-
-    return cosine_similarity_df            
-
-def create_reco_pls(sp, simil_new_df, only_hard_rules_df, config, songs_simil_df):
-    # let's know first how many pls we are going to create, and what is their configuration
-    result_playlists = [v for _, v in config[Config.RESULT_PLS].items()]
-
-    # Sort list by 'order' field
-    pls_to_create = sorted(result_playlists, key=lambda x: x['order'])    
-
-    pls_dfs = []
-
-    # for each pl to create
-    for pl in pls_to_create:
-        pl_name = f'{pl[Config.PL_NAME]} ({today})'
-
-        min_simil_range = min(pl[Config.SIMILITUDE_RANGE])
-        max_simil_range = max(pl[Config.SIMILITUDE_RANGE])   
-
-        ref_simil_col = REF_SIMIL_COL_PREFIX(1) + '_genre'
-
-        simil_new_df[ref_simil_col] = simil_new_df[ref_simil_col].round(2)    
-
-        ## keep only those whose highest similitude is above threshold configured
-        filtered_df = simil_new_df[(simil_new_df[ref_simil_col] > min_simil_range) 
-                                   & (simil_new_df[ref_simil_col] < max_simil_range)].copy()
+    ## recover artists popularity
+    def _recover_artists_pop(artists_str):
+        aux_list = artists_str.split(',')
         
-        if len(pls_dfs) > 0:
-            already_added_songs = [item for df in pls_dfs for item in df[Column.TRACK_ID].tolist()]
-            filtered_df = filtered_df[ ~filtered_df[Column.TRACK_ID].isin(already_added_songs) ]
-        
-        filtered_df = filtered_df.sort_values(by=ref_simil_col, ascending=False)
+        return artists_genres_df[artists_genres_df['artist'].isin(aux_list)][Column.POPULARITY_ARTIST].max()
 
-        no_simil_nor_fixed_df = simil_new_df[((simil_new_df[ref_simil_col] <= min_simil_range) 
-                                              & 
-                                              (simil_new_df[ref_simil_col] >= max_simil_range))
-                                              |
-                                              (simil_new_df[Column.IS_GENRE_FIX]==0)
-                                              ]
+    cand_songs_genres_df[Column.POPULARITY_ARTIST] = cand_songs_genres_df['artists_str'].apply(lambda x: _recover_artists_pop(x))
 
-        no_simil_nor_fixed_df = no_simil_nor_fixed_df.sort_values(by=[ref_simil_col, Column.POPULARITY_ARTIST], ascending=[False, False])
+    ## for each artist, keep the song with the highest popularity that appear in the candidates pls
+    cand_songs_popularity_df = get_song_popularity(sp, cand_songs_genres_df[Column.TRACK_ID].values)    
 
-        filtered_df = pd.concat([filtered_df, no_simil_nor_fixed_df])        
+    cand_songs_full_df = pd.merge(cand_songs_genres_df, cand_songs_popularity_df, on=Column.TRACK_ID)
 
-        ml_flag = pl[Config.USE_ML]
+    order_map = {val: i for i, val in enumerate(artists_reco_list_aux)}
+    cand_songs_full_df['rank'] = cand_songs_full_df['artists_str'].map(order_map)
 
-        if ml_flag:
-            # create ml df for training
-            ml_df = create_ml_df(sp, config)
+    # Sort by rank while maintaining the original order within ranks
+    cand_songs_full_sorted_df = cand_songs_full_df.sort_values(['rank', Column.POPULARITY_ARTIST, Column.POPULARITY_SONG], ascending=[True, False, False]).drop('rank', axis=1)
+    cand_songs_full_sorted_df = cand_songs_full_sorted_df.drop_duplicates(subset='artists_str', keep='first')
 
-            # create df of the songs to be detected
-            to_pred_df = songs_simil_df[songs_simil_df[Column.TRACK_ID].isin(simil_new_df[Column.TRACK_ID])]
-
-            preds, cv_metric = train_and_predict(ml_df, to_pred_df)
-            preds = preds.drop(columns=['p0'])        
-
-            preds[Column.PRED_P1] = preds[Column.PRED_P1].round(2)
-
-            if cv_metric < config[Config.ML_METRIC_THRESH]:
-                ml_flag = False
-
-                logger.info(f'ML not used! Model not good enough. Metric={cv_metric}')
-        else:
-            filtered_df = (pd.concat([filtered_df[filtered_df[Column.IS_GENRE_FIX]==1], 
-                                        filtered_df[filtered_df[Column.IS_GENRE_FIX]==0]
-                                        ])
-                            .reset_index(drop=True)
-                            )                                      
-
-            filtered_df = filtered_df.head(pl[Config.N_SONGS])
-
-            if pl[Config.INCLUDE_FAV_ARTISTS]:        
-                hr_and_filtered_df = pd.merge(filtered_df, only_hard_rules_df[[Column.TRACK_ID, Column.IS_HARD_RULES]], 
-                                              on=[Column.TRACK_ID, Column.IS_HARD_RULES], how='outer')
-            else:
-                hr_and_filtered_df = filtered_df
-
-            hr_and_filtered_df[Column.PL_NAME] = pl_name
-
-            hr_and_filtered_df = hr_and_filtered_df.drop_duplicates(subset=Column.TRACK_ID).sort_values(by=ref_simil_col, ascending=False)
-
-        if ml_flag: 
-            # ML logic
-            # concat predictions column
-            to_pred_with_preds = pd.concat([to_pred_df.reset_index(drop=True), preds.reset_index(drop=True)], axis=1)
-
-            # add simils
-            to_pred_with_preds = pd.merge(to_pred_with_preds, simil_new_df.drop(columns=[Column.TRACK_ARTISTS]), on=Column.TRACK_ID, how='inner')
-
-            # add hard_rules        
-            hr_and_filtered_df_aux = to_pred_with_preds.drop(columns=[Column.IS_HARD_RULES])
-
-            if pl[Config.INCLUDE_FAV_ARTISTS]:   
-                hr_and_filtered_df_aux = pd.merge(hr_and_filtered_df_aux, 
-                                                  only_hard_rules_df[[Column.TRACK_ID, Column.IS_HARD_RULES]], on=[Column.TRACK_ID], how='outer')           
-
-            hr_and_filtered_df_aux = hr_and_filtered_df_aux.fillna({Column.PREDICTION: -1.0,  Column.PRED_P1: -1.0, Column.IS_HARD_RULES: 0})
-
-            # make sure the final df is built correctly: redoing it again little by little            
-            ok_pred_songs = hr_and_filtered_df_aux[hr_and_filtered_df_aux[Column.PREDICTION] == 1]
-            ok_simil_songs = hr_and_filtered_df_aux[hr_and_filtered_df_aux[Column.TRACK_ID].isin(filtered_df[Column.TRACK_ID])]
-
-            pred_and_simil_ok_songs = pd.concat([ok_pred_songs, ok_simil_songs], ignore_index=True).drop_duplicates(subset=Column.TRACK_ID)
-            pred_and_simil_ok_songs = (pred_and_simil_ok_songs
-                                       .drop_duplicates(subset=Column.TRACK_ID)
-                                       .sort_values(by=[Column.PRED_P1, ref_simil_col], ascending=[False, False])
-                                       .head(pl[Config.N_SONGS])
-                                       )
-            
-            if pl[Config.INCLUDE_FAV_ARTISTS]:      
-                hard_rules_songs = hr_and_filtered_df_aux[hr_and_filtered_df_aux[Column.IS_HARD_RULES] == 1]
-                hr_and_filtered_df_aux = pd.concat([pred_and_simil_ok_songs, hard_rules_songs], ignore_index=True)
-            else:
-                hr_and_filtered_df_aux = pred_and_simil_ok_songs
-            
-            hr_and_filtered_df = (hr_and_filtered_df_aux
-                                  .dropna(subset=[Column.TRACK_ID])
-                                  .drop(columns=FEATURES_TO_USE)
-                                  .drop_duplicates(subset=Column.TRACK_ID)
-                                  )
-            
-            hr_and_filtered_df[Column.PL_NAME] = pl_name
-
-        pls_dfs.append(hr_and_filtered_df)
-
-        ## if nothing gets selected, pass
-        if len(hr_and_filtered_df) == 0:
-            logger.info('No songs to recommend')
-        else:
-            logger.info(f'Creating "{pl_name}" playlist! {len(hr_and_filtered_df)} songs in this playlist.')
-
-            error = create_playlist(sp, hr_and_filtered_df, config[Config.USER], pl_name)
-            if error is not None:
-                logger.error(error)
-
-    # create debug_df
-    # it must have a track of what song goes to what pl, what was the song that made it become included, the name of the pl in which it was included
-    
-    debug_df = pd.concat(pls_dfs, ignore_index=True)
-
-    debug_df[Column.IS_REF_PL] = 0
-
-    debug_df = (debug_df
-                .fillna({Column.IS_REF_PL: 0, Column.PREDICTION: -1.0,  Column.PRED_P1: -1.0, Column.IS_GENRE_FIX: 0, REF_SIMIL_COL_PREFIX(1) + FIX_GENRE_SIMIL_SUFFIX: -1.0})
-                )
-    
-    return debug_df
-
-def _hard_rules(sp, simil_df, fav_songs_df, config):
-    """
-    Simple rules that makes a song to be included in the final playlists.
-
-    - Artist is included in fav pl are included in each pl (if enabled)
-    - Songs with similitude = 1 -> song won't be included in final pl.
-    - Do not add songs that were added in previous playlists
-    """
-
-    simil_df_aux = simil_df.copy()
-
-    simil_df_aux = simil_df_aux[ ~ simil_df_aux[Column.TRACK_ID].isin( fav_songs_df[Column.TRACK_ID].values ) ]
-
+    ## create reco pls   
+    ### add fav artists songs if configured in yaml (and also other possible conditions in the config)
     fav_songs_df['artists_str'] = fav_songs_df[Column.TRACK_ARTISTS].apply(lambda x: ':'.join(sorted(x)))
-    simil_df_aux['artists_str'] = simil_df_aux[Column.TRACK_ARTISTS].apply(lambda x: ':'.join(sorted(x)))
 
     count_artists_songs = (fav_songs_df[[Column.TRACK_ID, 'artists_str']]     
      .groupby('artists_str')
@@ -365,28 +216,40 @@ def _hard_rules(sp, simil_df, fav_songs_df, config):
 
     count_artists_songs = count_artists_songs[count_artists_songs[Column.TRACK_ID] > config[Config.FAVED_ARTISTS_SECTION][Config.MIN_SONGS_IN_FAV_PL]]
 
-    only_hard_rules = simil_df_aux[ simil_df_aux['artists_str'].isin( count_artists_songs['artists_str'].values ) ].drop(columns=['artists_str'])
+    must_include_cand_songs_df = cand_songs_full_sorted_df[ cand_songs_full_sorted_df['artists_str'].isin( count_artists_songs['artists_str'].values ) ]
 
-    simil_df_aux = simil_df_aux.drop(columns=['artists_str'])
+    create_reco_pls(sp, cand_songs_full_sorted_df, must_include_cand_songs_df, config)
 
-    # remove previously added songs
-    prev_pls_songs = get_prev_pls_songs(sp, config)
-    
-    # remove from simil_df_aux and from only_hard_rules all songs that appeared in previous pls
+def create_reco_pls(sp, cand_songs_sorted_df, must_include_df, config):
+    # let's know first how many pls we are going to create, and what is their configuration
+    result_playlists = [v for _, v in config[Config.RESULT_PLS].items()]
 
-    simil_df_aux = simil_df_aux[ ~ simil_df_aux[Column.TRACK_ID].isin( prev_pls_songs[Column.TRACK_ID].values ) ]
-    only_hard_rules = only_hard_rules[ ~ only_hard_rules[Column.TRACK_ID].isin( prev_pls_songs[Column.TRACK_ID].values ) ]
+    # Sort list by 'order' field
+    pls_to_create = sorted(result_playlists, key=lambda x: x['order'])    
 
-    only_hard_rules[Column.IS_HARD_RULES] = 1
-    simil_df_aux[Column.IS_HARD_RULES] = 0    
+    pls_dfs = []
 
-    return simil_df_aux, only_hard_rules, prev_pls_songs
+    prev_pl_last_index = 0
 
-def _save_debug_df(debug_df):
-    if os.path.isfile(DEBUG_DF_PATH):
-        old_debug_df = pd.read_csv(DEBUG_DF_PATH, sep=';')
-        old_debug_df[Column.TRACK_ARTISTS] = old_debug_df[Column.TRACK_ARTISTS].apply(lambda x: eval(x) if str(x) != 'nan' else x)
+    # for each pl to create
+    for pl in pls_to_create:
+        pl_name = f'{pl[Config.PL_NAME]} ({today})'
 
-        debug_df = pd.concat([old_debug_df, debug_df], ignore_index=True).drop_duplicates(Column.TRACK_ID)
-    
-    debug_df.to_csv(DEBUG_DF_PATH, index=False, sep=';') 
+        new_reco_pl_songs_df = cand_songs_sorted_df.iloc[prev_pl_last_index : pl[Config.N_SONGS]].copy()
+
+        prev_pl_last_index = prev_pl_last_index + pl[Config.N_SONGS]
+
+        if pl[Config.INCLUDE_FAV_ARTISTS]:
+            new_reco_pl_songs_df = pd.concat([new_reco_pl_songs_df, must_include_df])
+
+        pls_dfs.append(new_reco_pl_songs_df)
+
+        ## if nothing gets selected, pass
+        if len(new_reco_pl_songs_df) == 0:
+            logger.info('No songs to recommend')
+        else:
+            logger.info(f'Creating "{pl_name}" playlist! {len(new_reco_pl_songs_df)} songs in this playlist.')
+
+            error = create_playlist(sp, new_reco_pl_songs_df, config[Config.USER], pl_name)
+            if error is not None:
+                logger.error(error)

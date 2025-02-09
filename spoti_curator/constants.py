@@ -38,6 +38,8 @@ class Column:
     POPULARITY_ARTIST = 'popularity_artist'
     POPULARITY_SONG = 'popularity_song'
 
+    GENRES_CONCAT = 'genres_concat'
+
 class Config:
     ORIGIN_PLS = 'origin_playlists'
     PLS_TO_CURATE = 'playlists_to_curate'
