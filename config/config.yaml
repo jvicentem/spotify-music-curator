@@ -33,6 +33,20 @@ origin_playlists:
     - "https://open.spotify.com/playlist/0okFxg6e3F3oZSZGq8kwY0?si=fcfa22ba530a428d" # radar joven
     - "https://open.spotify.com/playlist/6s4HdPQQMfyAkSC2wrotE3?si=d0411b2681b5474f" # primavera 2025
     - "https://open.spotify.com/playlist/4BSj7IwrHLRpZeVNodMh5Z?si=830dece7523a46ad" # coachella 2025
+
+    - "https://open.spotify.com/playlist/47MSXsGaZvarTjtPmVxJTK?si=f9c7d058cdfa4f5e" # new british rock
+    - "https://open.spotify.com/playlist/51GmtQuA0j1AlsKgJuEWFB?si=d54c5ca238f24267"
+    - "https://open.spotify.com/playlist/2PWmcL6SZx1dm9bZpoXCEE?si=70fb580d61404ef5"
+    - "https://open.spotify.com/playlist/6ocDItVfvO3mU4RSsRpGW6?si=165088cb9f004101"
+    - "https://open.spotify.com/playlist/5yNdi4PoYD15eXEB7g6XYF?si=89bb161185084d23"
+    - "https://open.spotify.com/playlist/52dFMsBJKSnBFLEKW0OB2g?si=73c8bd096ee442cc"
+    - "https://open.spotify.com/playlist/0yECGr3NGaW4mw3lsNGskL?si=6823c6a3d6b744f9"
+    - "https://open.spotify.com/playlist/2Qu8wxZ3Bbs4a1UJYbwYWj?si=6f93a7785d864a75"
+    - "https://open.spotify.com/playlist/1mJFggQPFQHv8K2V8Rv768?si=253baa356cf243ec"
+    - "https://open.spotify.com/playlist/2ixwcMhkBf6t5f94IFjoun?si=0a75bd430a3b47ca"
+    - "https://open.spotify.com/playlist/7b2JALoATysii4mbkO44bx?si=1f0eadbf594b49d0" 
+    - "https://open.spotify.com/playlist/2kJEOAOcSDn6NeksnARkp8?si=a703be0b76124dc5"
+     
 faved_artists:
   min_songs_in_fav_pl: 3 # artists need to have at least this number of songs in fav pl to be considered (= 1 can create noise)
   fav_playlists_url: 
