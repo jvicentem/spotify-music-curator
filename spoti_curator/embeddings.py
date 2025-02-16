@@ -1,121 +1,65 @@
-import numpy as np
-from transformers import AutoTokenizer, AutoModel
-import torch
-from typing import List, Dict, Optional, Union
-from torch.utils.data import Dataset, DataLoader
+import os
+from typing import Dict, List
 
-class TextDataset(Dataset):
-    """Dataset class for texts"""
-    def __init__(self, texts: List[str], max_length: int):
-        self.texts = texts
-        self.max_length = max_length
+import json
+from openai import OpenAI
 
-    def __len__(self):
-        return len(self.texts)
+CACHE_PATH = './embeddings.json'
 
-    def __getitem__(self, idx):
-        return self.texts[idx]
+class GetOpenAIEmbeddings:
+    def __init__(self, openai_session: OpenAI, model: str = 'text-embedding-3-large'):
+        self.model = model
+        self.cache = None
+        self.openai_session = openai_session
 
-class GenreAnalyzer:
-    def __init__(
-        self,
-        model_name: str = "sentence-transformers/all-mpnet-base-v2",
-        device: str = "cpu",
-        batch_size: int = 32
-    ):
-        """Initialize the genre analyzer with specified model.
+    def _get_embedding_from_cache(self, text: str) -> str:
+        if self.cache is None:
+            if os.path.exists(CACHE_PATH):
+                with open(CACHE_PATH, 'r') as openfile:
+                    cache = json.load(openfile)
+                    self.cache = cache
+
+        if self.model in self.cache and text in self.cache[self.model]:
+            return self.cache[self.model][text]
         
-        Args:
-            model_name: Name of the pre-trained model to use
-            device: Device to run the model on ('cpu' or 'cuda')
-            batch_size: Number of texts to process at once
-        """
-        self.model_name = model_name
-        self.device = device
-        self.batch_size = batch_size
-        self._load_model()
+    def _save_embeddings_to_cache(self, embeds_dict: Dict[str, str]):                         
+        if self.cache is None:
+            if os.path.exists(CACHE_PATH):
+                with open(CACHE_PATH, 'r') as openfile:
+                    cache = json.load(openfile)
+                    self.cache = cache    
 
-    def _load_model(self):
-        """Load the model and tokenizer."""
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-        self.model = AutoModel.from_pretrained(self.model_name)
-        self.model.eval()
-        self.model.to(self.device)
+        self.cache[self.model] = embeds_dict | self.cache[self.model]
 
-    def _process_batch(self, batch: List[str], max_length: int) -> np.ndarray:
-        """Process a batch of texts and return their embeddings."""
-        # Tokenize the batch
-        inputs = self.tokenizer(
-            batch,
-            max_length=max_length,
-            padding=True,
-            truncation=True,
-            return_tensors="pt"
+        with open(CACHE_PATH, 'w') as openfile:
+            json.dump(self.cache, openfile)        
+        
+    def _get_embedding_from_openai(self, texts: List[str]) -> List:   
+        response = self.openai_session.embeddings.create(
+                        model = self.model,
+                        input = texts
         )
 
-        inputs = {k: v.to(self.device) for k, v in inputs.items()}
+        return response.data #[0].embedding
 
-        # Generate embeddings
-        with torch.no_grad():
-            outputs = self.model(**inputs)
-            token_embeddings = outputs[0]
+    def get_embedding(self, texts: List[str]) -> Dict[str, str]:
+        result_dict = {}
 
-            # Mean pooling
-            attention_mask = inputs['attention_mask']
-            input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
-            sum_embeddings = torch.sum(token_embeddings * input_mask_expanded, 1)
-            sum_mask = torch.clamp(input_mask_expanded.sum(1), min=1e-9)
-            embeddings = sum_embeddings / sum_mask
+        not_cached_embs = []
 
-        return embeddings.cpu().numpy()
+        for txt in texts:
+            cached_emb = self._get_embedding_from_cache(txt)
 
-    def get_embedding(
-        self, 
-        texts: Union[str, List[str]], 
-        max_length: int = 256
-    ) -> Optional[np.ndarray]:
-        """Generate embeddings for one or more texts.
+            if cached_emb is not None:
+                result_dict[txt] = cached_emb
+            else:
+                not_cached_embs.append(txt)
         
-        Args:
-            texts: Single text string or list of text strings
-            max_length: Maximum token length for each text
-            
-        Returns:
-            numpy array of embeddings with shape (n_texts, embedding_dim)
-            or None if an error occurs
-        """
-        try:
-            # Convert single text to list for uniform processing
-            if isinstance(texts, str):
-                texts = [texts]
+        embeddings = [ x.embedding for x in self._get_embedding_from_openai(not_cached_embs) ]
 
-            # Create dataset and dataloader for batch processing
-            dataset = TextDataset(texts, max_length)
-            dataloader = DataLoader(
-                dataset, 
-                batch_size=self.batch_size, 
-                shuffle=False
-            )
+        for emb in embeddings:
+            result_dict[txt] = emb
 
-            # Process batches and collect embeddings
-            all_embeddings = []
-            for batch in dataloader:
-                batch_embeddings = self._process_batch(batch, max_length)
-                all_embeddings.append(batch_embeddings)
+        self._save_embeddings_to_cache(result_dict)
 
-            # Concatenate all embeddings
-            if all_embeddings:
-                return np.vstack(all_embeddings)
-            return None
-
-        except Exception as e:
-            print(f"Error generating embeddings: {str(e)}")
-            return None
-
-    def __call__(
-        self, 
-        texts: Union[str, List[str]], 
-        max_length: int = 256
-    ) -> Optional[np.ndarray]:
-        """Convenience method to call get_embedding directly."""
-        return self.get_embedding(texts, max_length)
+        return result_dict

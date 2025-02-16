@@ -131,7 +131,7 @@ def get_artists_genres(sp, artists_list, manipulate_genres=False):
 
             #     genres.append(', '.join(list(set(genres_manipulated))))
             # else:
-            genres.append(', '.join(list(set(t['genres']))))
+            genres.append(', '.join( sorted(list(set(t['genres']))) ))
 
     artists_genres_df = pd.DataFrame({'artist': artist_ids, Column.GENRES: genres, Column.POPULARITY_ARTIST: popularity})
 
