@@ -14,6 +14,6 @@ export PYTHONPATH=$PYTHONPATH:$PWD
 
 python ./spoti_curator/app.py
 
-#echo $SPECIAL_ENV | sudo -S -k pmset repeat wakeorpoweron S 12:30:00 # for the world project
+echo $SPECIAL_ENV | sudo -S -k pmset repeat wakeorpoweron S 12:30:00 # for the world project
 
-#echo $SPECIAL_ENV | sudo -S -k pmset sleepnow
+echo $SPECIAL_ENV | sudo -S -k pmset sleepnow
