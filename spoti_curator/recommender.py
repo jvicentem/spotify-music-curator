@@ -168,8 +168,9 @@ def do_recommendation():
     cand_songs_full_df['rank'] = cand_songs_full_df['artists_str'].map(order_map)
 
     # Sort by rank while maintaining the original order within ranks
-    cand_songs_full_sorted_df = cand_songs_full_df.sort_values(['rank', Column.POPULARITY_ARTIST, Column.POPULARITY_SONG], ascending=[True, False, False])#.drop('rank', axis=1)
+    cand_songs_full_sorted_df = cand_songs_full_df.sort_values(['rank', Column.POPULARITY_ARTIST, Column.POPULARITY_SONG], ascending=[True, False, False])
     cand_songs_full_sorted_df = cand_songs_full_sorted_df.drop_duplicates(subset='artists_str', keep='first')
+    cand_songs_full_sorted_df = cand_songs_full_sorted_df.groupby('rank').head(3) # keep only three artist per genre
 
     ## create reco pls   
     ### add fav artists songs if configured in yaml (and also other possible conditions in the config)
