@@ -6,10 +6,12 @@ from openai import OpenAI
 
 CACHE_PATH = './embeddings.json'
 
+PRE_STRING = 'Music genres: ' 
+
 class GetOpenAIEmbeddings:
     def __init__(self, openai_session: OpenAI, model: str = 'text-embedding-3-large'):
         self.model = model
-        self.cache = None
+        self.cache = dict({})
         self.openai_session = openai_session
 
     def _get_embedding_from_cache(self, text: str) -> str:
@@ -29,7 +31,10 @@ class GetOpenAIEmbeddings:
                     cache = json.load(openfile)
                     self.cache = cache    
 
-        self.cache[self.model] = embeds_dict | self.cache[self.model]
+        if self.model in self.cache:
+            self.cache[self.model] = embeds_dict | self.cache[self.model]
+        else:
+            self.cache[self.model] = embeds_dict
 
         with open(CACHE_PATH, 'w') as openfile:
             json.dump(self.cache, openfile)        
@@ -42,12 +47,14 @@ class GetOpenAIEmbeddings:
 
         return response.data #[0].embedding
 
-    def get_embedding(self, texts: List[str]) -> Dict[str, str]:
+    def get_embeddings(self, texts: List[str]) -> Dict[str, str]:
         result_dict = {}
 
         not_cached_embs = []
 
         for txt in texts:
+            txt = PRE_STRING + txt
+
             cached_emb = self._get_embedding_from_cache(txt)
 
             if cached_emb is not None:
@@ -57,7 +64,7 @@ class GetOpenAIEmbeddings:
         
         embeddings = [ x.embedding for x in self._get_embedding_from_openai(not_cached_embs) ]
 
-        for emb in embeddings:
+        for txt, emb in zip(not_cached_embs, embeddings):
             result_dict[txt] = emb
 
         self._save_embeddings_to_cache(result_dict)

@@ -1,2 +1,7 @@
-2025-01-08 19:58:23,791 Creating "Best Matches (2025/01/08)" playlist! 55 songs in this playlist.
-2025-01-08 19:58:24,138 Creating "Fuzzy Stuff (2025/01/08)" playlist! 60 songs in this playlist.
+2025-02-23 17:37:23,025 HTTP Error for GET to https://api.spotify.com/v1/playlists/4EhjPLkcbWraBhx48IYRt1/tracks with Params: {'limit': 100, 'offset': 0, 'fields': None, 'market': None, 'additional_types': 'track'} returned 404 due to Resource not found
+2025-02-23 17:47:18,245 HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-02-23 17:53:46,506 HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-02-23 18:01:32,580 HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-02-23 18:04:00,102 HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-02-25 18:23:35,107 Creating "Best Matches (2025/02/23)" playlist! 50 songs in this playlist.
+2025-02-25 18:30:02,693 Creating "Fuzzy Stuff (2025/02/23)" playlist! 60 songs in this playlist.

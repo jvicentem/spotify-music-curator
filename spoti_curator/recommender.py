@@ -7,8 +7,9 @@ import numpy as np
 import pandas as pd
 from openai import OpenAI
 
-from spoti_curator.embeddings import GenreAnalyzer
+from spoti_curator.embeddings import PRE_STRING, GetOpenAIEmbeddings
 from spoti_curator.ml import create_ml_df, train_and_predict, FEATURES_TO_USE
+from sklearn.metrics.pairwise import cosine_similarity
 
 logging.basicConfig(filename='spoti_recommender.log',
                     format='%(asctime)s %(message)s',
@@ -21,37 +22,6 @@ today = datetime.today().strftime('%Y/%m/%d')
 
 from spoti_curator.constants import FIX_GENRE_SIMIL_SUFFIX, Column, Config, get_config
 from spoti_curator.spoti_utils import create_playlist, get_prev_pls_songs, get_song_popularity, get_songs_from_pl, get_artists_genres, login
-
-
-def get_chatgpt_response(prompt: str, model: str = "gpt-4o-mini") -> str:
-    """
-    Sends a prompt to ChatGPT and retrieves the response.
-    
-    Args:
-        prompt (str): The input prompt for ChatGPT.
-        model (str): The language model to use (default is "gpt-4").
-
-    Returns:
-        str: The response from ChatGPT.
-    """
-    try:
-        client = OpenAI(
-            api_key=os.environ.get("OPENAI_API_KEY"),  # This is the default and can be omitted
-        )
-
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt,
-                }
-            ],
-            model=model,
-        )
-
-        return chat_completion.choices[0].message.content
-    except Exception as e:
-        return f"Error: {e}"
 
 
 def do_recommendation():
@@ -151,28 +121,23 @@ def do_recommendation():
 
     cand_genres_dict = { i: k for i, k in enumerate(cand_genres_artists_map.keys()) }
 
-    cand_genres_str = "".join([f"{i}. {k} \n" for i, k in cand_genres_dict.items() ])
+    openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-    prompt = f'''
-It's your task to recommend artists based on their genre. A list of reference artists and their genres is provided and later a list of candidate artists is provided.
+    non_ref_songs_genres_list = cand_songs_genres_unique_df[Column.GENRES_CONCAT].unique().tolist()
 
-Here are the reference artists. Each list represents the genres of each reference artist:
+    embeddings = GetOpenAIEmbeddings(openai_client).get_embeddings(list(set(ref_songs_genres_list + non_ref_songs_genres_list)))
 
-{", ".join( ["[" + x + "]" for x in ref_songs_genres_list] )}
+    ref_embeds = np.stack([embeddings[PRE_STRING + gr] for gr in ref_songs_genres_list])
+    non_ref_embeds = np.stack([embeddings[PRE_STRING + gr] for gr in non_ref_songs_genres_list])
 
-These are the candidate artists. Only their genres are presented with an index on the left.
-
-{ cand_genres_str }
-
-Please, do the following now: First, sort the candidate artists from most probable to be liked by the user to least. Then, place their indices in a Python list. 
-Make sure you include all the {len(cand_genres_dict.keys())} candidate artists indices in the resulting list. 
-Do not return any other text, just and only the Python list with the requested content.
-'''
+    # process similarities with the refs , sort their indices to rebuild again reco_list
+    cosine_similarity_result = cosine_similarity(non_ref_embeds, ref_embeds)
+    cosine_similarity_df = pd.DataFrame(cosine_similarity_result)
     
-    ## send prompt, receive it and process it.
-    response = get_chatgpt_response(prompt, model="o1-preview")
-
-    reco_list = eval(response.strip('```').strip('python').strip('\n'))
+    cosine_similarity_df['FINAL_SIMIL_VAL'] = cosine_similarity_df.apply(lambda x: max(x), axis=1)
+    cosine_similarity_df[Column.GENRES_CONCAT] = non_ref_songs_genres_list
+    cosine_similarity_df = cosine_similarity_df.sort_values(by='FINAL_SIMIL_VAL', ascending=False)
+    reco_list = cosine_similarity_df[Column.GENRES_CONCAT].apply(lambda x: non_ref_songs_genres_list.index(x)).tolist()
 
     ## convert reco_list to song recos 
     ### if several artists are mapped to a genre string (tie), recommend the song with highest popularity. If still ties, 
@@ -181,7 +146,6 @@ Do not return any other text, just and only the Python list with the requested c
     genres_reco_list_aux = [cand_genres_dict[i] for i in reco_list if i < len(cand_genres_dict.keys())]
 
     artists_reco_list_aux = [cand_genres_artists_map[gr] for gr in genres_reco_list_aux]
-    artists_reco_list_aux = list(itertools.chain(*artists_reco_list_aux))
 
     ## recover artists popularity
     def _recover_artists_pop(artists_str):
@@ -196,11 +160,15 @@ Do not return any other text, just and only the Python list with the requested c
 
     cand_songs_full_df = pd.merge(cand_songs_genres_df, cand_songs_popularity_df, on=Column.TRACK_ID)
 
-    order_map = {val: i for i, val in enumerate(artists_reco_list_aux)}
+    order_map = dict({})
+    for i, val in enumerate(artists_reco_list_aux):
+        for sub_val in val:
+            order_map[sub_val] = i
+
     cand_songs_full_df['rank'] = cand_songs_full_df['artists_str'].map(order_map)
 
     # Sort by rank while maintaining the original order within ranks
-    cand_songs_full_sorted_df = cand_songs_full_df.sort_values(['rank', Column.POPULARITY_ARTIST, Column.POPULARITY_SONG], ascending=[True, False, False]).drop('rank', axis=1)
+    cand_songs_full_sorted_df = cand_songs_full_df.sort_values(['rank', Column.POPULARITY_ARTIST, Column.POPULARITY_SONG], ascending=[True, False, False])#.drop('rank', axis=1)
     cand_songs_full_sorted_df = cand_songs_full_sorted_df.drop_duplicates(subset='artists_str', keep='first')
 
     ## create reco pls   
@@ -235,11 +203,11 @@ def create_reco_pls(sp, cand_songs_sorted_df, must_include_df, config):
     for pl in pls_to_create:
         pl_name = f'{pl[Config.PL_NAME]} ({today})'
 
-        new_reco_pl_songs_df = cand_songs_sorted_df.iloc[prev_pl_last_index : pl[Config.N_SONGS]].copy()
+        new_reco_pl_songs_df = cand_songs_sorted_df.iloc[prev_pl_last_index : prev_pl_last_index + pl[Config.N_SONGS]].copy()
 
         prev_pl_last_index = prev_pl_last_index + pl[Config.N_SONGS]
 
-        if pl[Config.INCLUDE_FAV_ARTISTS]:
+        if pl[Config.INCLUDE_FAV_ARTISTS]: # TODO: remove songs from must_include_df that were included in previous playlists
             new_reco_pl_songs_df = pd.concat([new_reco_pl_songs_df, must_include_df])
 
         new_reco_pl_songs_df = new_reco_pl_songs_df.drop_duplicates(subset=[Column.TRACK_ID])
