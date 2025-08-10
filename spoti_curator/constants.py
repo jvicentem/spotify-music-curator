@@ -50,6 +50,7 @@ class Config:
 
     PL_NAME = 'name'
     SIMILITUDE_RANGE = 'similitude_range'
+    MIN_MATCHES_IN_RANGE = 'min_matches_in_range'
     N_SONGS = 'n_songs'
     INCLUDE_FAV_ARTISTS = 'artist_in_fav_pl_are_included'
     

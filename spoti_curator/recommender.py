@@ -137,6 +137,7 @@ def do_recommendation():
     cosine_similarity_df['FINAL_SIMIL_VAL'] = cosine_similarity_df.apply(lambda x: max(x), axis=1)
     cosine_similarity_df[Column.GENRES_CONCAT] = non_ref_songs_genres_list
     cosine_similarity_df = cosine_similarity_df.sort_values(by='FINAL_SIMIL_VAL', ascending=False)
+
     reco_list = cosine_similarity_df[Column.GENRES_CONCAT].apply(lambda x: non_ref_songs_genres_list.index(x)).tolist()
 
     ## convert reco_list to song recos 
@@ -187,7 +188,11 @@ def do_recommendation():
 
     must_include_cand_songs_df = cand_songs_full_sorted_df[ cand_songs_full_sorted_df['artists_str'].isin( count_artists_songs['artists_str'].values ) ]
 
-    create_reco_pls(sp, cand_songs_full_sorted_df, must_include_cand_songs_df, config)
+    cand_songs_full_simil_df = pd.merge(cand_songs_full_sorted_df, cosine_similarity_df, on=Column.GENRES_CONCAT)
+
+    cand_songs_full_simil_df.to_csv('./cand_songs_full_simil_df_debug.csv')
+
+    create_reco_pls(sp, cand_songs_full_simil_df, must_include_cand_songs_df, config)
 
 def create_reco_pls(sp, cand_songs_sorted_df, must_include_df, config):
     # let's know first how many pls we are going to create, and what is their configuration
@@ -198,15 +203,30 @@ def create_reco_pls(sp, cand_songs_sorted_df, must_include_df, config):
 
     pls_dfs = []
 
-    prev_pl_last_index = 0
+    song_indices_used = []
 
     # for each pl to create
     for pl in pls_to_create:
         pl_name = f'{pl[Config.PL_NAME]} ({today})'
 
-        new_reco_pl_songs_df = cand_songs_sorted_df.iloc[prev_pl_last_index : prev_pl_last_index + pl[Config.N_SONGS]].copy()
+        new_reco_pl_songs_df = cand_songs_sorted_df.copy()
 
-        prev_pl_last_index = prev_pl_last_index + pl[Config.N_SONGS]
+        new_reco_pl_songs_df['count_high'] = ((new_reco_pl_songs_df[[x for x in new_reco_pl_songs_df.columns if type(x) is int]] >= min(pl[Config.SIMILITUDE_RANGE]))
+                                              &
+                                              (new_reco_pl_songs_df[[x for x in new_reco_pl_songs_df.columns if type(x) is int]] <= 1.0 #max(pl[Config.SIMILITUDE_RANGE]) #TODO: commented on purpose to catch missing songs from best matches
+                                             )
+                                          ).sum(axis=1)
+        
+        new_reco_pl_songs_df = new_reco_pl_songs_df[~new_reco_pl_songs_df.index.isin(song_indices_used)]
+     
+        new_reco_pl_songs_df = new_reco_pl_songs_df[new_reco_pl_songs_df['count_high'] >= pl[Config.MIN_MATCHES_IN_RANGE]]
+        new_reco_pl_songs_df = new_reco_pl_songs_df.sort_values(['count_high', 'FINAL_SIMIL_VAL', Column.POPULARITY_ARTIST, Column.POPULARITY_SONG], 
+                                                                ascending=[False, False, False, False])
+        new_reco_pl_songs_df = new_reco_pl_songs_df.reset_index()
+
+        # new_reco_pl_songs_df = new_reco_pl_songs_df.head(pl[Config.N_SONGS]).copy() # TODO: commented on purpose
+
+        song_indices_used += list(new_reco_pl_songs_df['index'])
 
         if pl[Config.INCLUDE_FAV_ARTISTS]: # TODO: remove songs from must_include_df that were included in previous playlists
             new_reco_pl_songs_df = pd.concat([new_reco_pl_songs_df, must_include_df])
